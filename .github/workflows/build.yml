@@ -1,0 +1,49 @@
+name: Native container verification
+on:
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: aarch64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check public files and versions
+        run: python3 scripts/check_publication.py
+      - name: Test release promotion without external side effects
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend and frontend, run Go tests and vet
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          version=$(python3 -c 'import sys; sys.path.insert(0,"scripts"); from check_publication import metadata; print(metadata()[0])')
+          docker buildx build --load --provenance=false --platform "$PLATFORM" \
+            --build-arg VERSION="$version" --build-arg REVISION="$GITHUB_SHA" \
+            -t fve-test:local fve_controller
+      - name: Run native image, persistence and Ingress tests
+        run: python3 scripts/container_smoke.py fve-test:local
+      - name: Login to GHCR
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Publish tested immutable architecture tag
+        if: inputs.publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARCH: ${{ matrix.arch }}
+        run: python3 scripts/publish_image.py "$ARCH"

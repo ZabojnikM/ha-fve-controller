@@ -1,0 +1,65 @@
+name: Release verified add-on
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version already set in config.yaml, package.json and CHANGELOG.md
+        required: true
+        type: string
+concurrency:
+  group: release
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Only release reviewed main at its configured version
+        env:
+          REQUESTED: ${{ inputs.version }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          python3 scripts/check_publication.py
+          python3 -c 'import os,sys; sys.path.insert(0,"scripts"); from check_publication import metadata; assert os.environ["REQUESTED"] == metadata()[0]'
+  images:
+    needs: validate
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build.yml
+    with:
+      publish: true
+  manifest:
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Publish immutable multi-architecture manifest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          python3 scripts/publish_image.py manifest
+  promote:
+    needs: manifest
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify public manifest and all layers without authentication
+        run: |
+          python3 -c 'import sys; sys.path.insert(0,"scripts"); from check_publication import metadata; from verify_registry import verify; version,image=metadata(); verify(image,version)'
+      - name: Fast-forward stable and publish matching GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+        run: bash scripts/promote.sh
