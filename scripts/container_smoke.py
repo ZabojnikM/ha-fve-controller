@@ -55,6 +55,11 @@ with tempfile.TemporaryDirectory() as directory:
                 with urllib.request.urlopen(base + path) as response:
                     return json.load(response)
             state = get("/api/state")
+            tuv = get("/api/tuv")
+            assert tuv["enabled"] is True and tuv["connected"] is False
+            assert tuv["status"] == "no_token", "Standalone container must not invent HA access"
+            assert tuv["nominal_power"]["value"] is None
+            assert len(tuv["readings"]) == 7
             assert state["observe_only"] is True and state["control_enabled"] is False
             assert state["decision"]["last_balance"] == last_balance
             assert all(o["sent"] is None for o in state["outputs"].values())

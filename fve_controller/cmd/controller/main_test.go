@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fve-controller/internal/homeassistant"
 	"fve-controller/internal/victron"
 	"net/http/httptest"
 	"path/filepath"
@@ -10,6 +11,30 @@ import (
 	"testing"
 	"time"
 )
+
+func TestTUVAPIIngressAndPrivacy(t *testing.T) {
+	a := &App{ha: homeassistant.New(homeassistant.DefaultConfig(), "test-secret")}
+	h := a.handler(t.TempDir(), true)
+	for _, peer := range []string{"1.2.3.4:1000", "172.30.32.2:1000"} {
+		r := httptest.NewRequest("GET", "/api/tuv", nil)
+		r.RemoteAddr = peer
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if peer == "1.2.3.4:1000" {
+			if w.Code != 403 {
+				t.Fatal("TUV must stay behind ingress")
+			}
+			continue
+		}
+		if w.Code != 200 || strings.Contains(w.Body.String(), "test-secret") || strings.Contains(w.Body.String(), "sensor.tepla_voda") {
+			t.Fatal("TUV response fails or leaks configuration")
+		}
+		var out homeassistant.Snapshot
+		if json.Unmarshal(w.Body.Bytes(), &out) != nil || out.Connected || out.NominalPower.Value != nil {
+			t.Fatal("startup must not confirm old state")
+		}
+	}
+}
 
 func TestVictronAPIIngressAndPrivacy(t *testing.T) {
 	a := &App{victron: victron.New(victron.Config{Password: "test-secret"})}

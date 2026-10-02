@@ -61,3 +61,12 @@ První vydání je zveřejněné: https://github.com/ZabojnikM/ha-fve-controller
 - Veřejný obsah prošel kontrolou sledovaných souborů. Soukromé podklady nejsou v žádném publikovaném commitu.
 
 Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v CI, nikoli na místním Windows. Nadále nebyla provedena instalace přes skutečný Home Assistant Supervisor ani ověřeno uživatelovo HA/CPU. Zůstává čistá simulace bez fyzického ovládání. CI upozorňuje na starší runtime použitých akcí checkout@v4/buildx@v3; běhy úspěšně proběhly na vynuceném Node 24.
+
+## Čtení TUV 0.3.0 — 2. 10. 2026
+
+- Go testy všech balíčků a go vet prošly. Nové testy ověřují stupně 0–3 kW, žádný/více zapnutých přepínačů, missing/unknown/unavailable, nulovou teplotu, jednotky, stáří a čas v budoucnosti, timeout příjmu, restart, chybu přihlášení a obnovu.
+- HTTP test ověřuje pouze GET, filtrování nevybraných entit a absenci tokenu, konfigurace a raw HA dat v API. Integrační API test ověřuje Ingress ACL pro /api/tuv. Nativní kontejnerový smoke test nově kontroluje bezpečný stav TUV bez Supervisor tokenu.
+- Frontend vue-tsc a produkční Vite build prošly se zamčenými závislostmi. Lokální build proběhl v izolované ignorované složce .tools/frontend-check kvůli nekompatibilnímu původnímu node_modules.
+- Vizuální kontrola v Chromiu: desktop 1280 px a mobil 390 px, bez horizontálního přetečení. Ověřeny platné anonymizované vzorky, zastaralá teplota, konfliktní stupeň, chybějící Supervisor token a chyba backendu. Bez chyb JavaScriptu.
+- Lokálně není přístup k uživatelovu HA. Interní proxy, jednotky a aktualizace teplot na konkrétní instalaci ověří uživatel po aktualizaci. Živá data zůstávají oddělená od simulace, neukládají se do SQLite; Node-RED ani fyzické výstupy se nemění.
+- Oficiální dokumentace HA apps konfigurace, komunikace, Ingress, Supervisor endpoints, REST API a MQTT byla ověřena v tomto sezení před implementací. Pro přístup k Core se používá homeassistant_api, nikoli rozšířené hassio_api.

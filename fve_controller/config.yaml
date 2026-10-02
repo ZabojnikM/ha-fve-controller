@@ -1,9 +1,9 @@
 name: FVE Controller
-version: "0.2.0"
+version: "0.3.0"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller
-description: Sledování Victronu přes MQTT a simulovaný koordinátor bez ovládání zařízení
+description: Čtení Victronu přes MQTT a TUV z HA, simulovaný koordinátor bez ovládání zařízení
 arch:
   - amd64
   - aarch64
@@ -14,6 +14,16 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:solar-power
 options:
+  ha_enabled: true
+  ha_temperature_fresh_seconds: 900
+  ha_entities:
+    upper: sensor.tepla_voda
+    lower: sensor.tuv_1
+    pump: switch.kicony_kc868_a16_y04
+    stage_0: switch.tuv_0kw
+    stage_1: switch.tuv_1kw
+    stage_2: switch.tuv_2kw
+    stage_3: switch.tuv_3kw
   mqtt_enabled: false
   mqtt_host: core-mosquitto
   mqtt_port: 1883
@@ -29,6 +39,16 @@ options:
     solar_shelter: victron/N/c0619ab221ee/solarcharger/278/Yield/Power
     solar_fence: victron/N/c0619ab221ee/solarcharger/1/Yield/Power
 schema:
+  ha_enabled: bool
+  ha_temperature_fresh_seconds: int(30,86400)
+  ha_entities:
+    upper: str
+    lower: str
+    pump: str
+    stage_0: str
+    stage_1: str
+    stage_2: str
+    stage_3: str
   mqtt_enabled: bool
   mqtt_host: str
   mqtt_port: port
@@ -43,5 +63,5 @@ schema:
     solar_roof: str
     solar_shelter: str
     solar_fence: str
-homeassistant_api: false
+homeassistant_api: true
 hassio_api: false

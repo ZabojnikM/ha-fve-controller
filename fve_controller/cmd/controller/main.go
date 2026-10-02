@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fve-controller/internal/core"
+	"fve-controller/internal/homeassistant"
 	"fve-controller/internal/victron"
 	"log"
 	_ "modernc.org/sqlite"
@@ -22,6 +24,7 @@ type App struct {
 	scenario string
 	state    map[string]any
 	victron  *victron.Reader
+	ha       *homeassistant.Reader
 }
 
 func env(k, v string) string {
@@ -103,6 +106,14 @@ func (a *App) tick(now time.Time) error {
 }
 func (a *App) handler(web string, ingress bool) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/tuv", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		reader := a.ha
+		if reader == nil {
+			reader = homeassistant.New(homeassistant.Config{}, "")
+		}
+		json.NewEncoder(w).Encode(reader.Snapshot(time.Now()))
+	})
 	mux.HandleFunc("GET /api/victron", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		reader := a.victron
@@ -205,6 +216,14 @@ func main() {
 	a.victron = victron.New(mqttConfig)
 	a.victron.Start()
 	defer a.victron.Close()
+	haConfig, err := homeassistant.Load(env("OPTIONS_PATH", filepath.Join(dir, "options.json")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	a.ha = homeassistant.New(haConfig, os.Getenv("SUPERVISOR_TOKEN"))
+	haContext, cancelHA := context.WithCancel(context.Background())
+	defer cancelHA()
+	a.ha.Start(haContext)
 	var last string
 	err = db.QueryRow("SELECT value FROM settings WHERE key='simulation_last_balance'").Scan(&last)
 	if err == nil {

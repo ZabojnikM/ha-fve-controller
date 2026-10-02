@@ -3,6 +3,7 @@ import {ref,onMounted,onUnmounted} from 'vue'
 import {version} from '../package.json'
 import EnergyIcon from './EnergyIcon.vue'
 import VictronReadings from './VictronReadings.vue'
+import TuvReadings from './TuvReadings.vue'
 type Sample={value:number;unit:string;at:string;valid:boolean}
 type State={at:string;scenario:string;input:Record<string,Sample>;quality:Record<string,string>;decision:{mode:string;reason:string;target:number;tuv:number;car:number;balance:string;last_balance:string;next_balance:string}}
 const state=ref<State>(),error=ref(''),busy=ref(false)
@@ -32,6 +33,7 @@ let timer:ReturnType<typeof setInterval>;onMounted(()=>{refresh();timer=setInter
     <label>Simulační scénář<select :value="state?.scenario" :disabled="busy || !state" @change="scenario"><option v-for="s in scenarios" :key="s[0]" :value="s[0]">{{s[1]}}</option></select></label>
   </div>
   <VictronReadings />
+  <TuvReadings />
   <div class="notice"><strong>Simulace</strong><span>Následující data jsou modelová. Doporučení se neodesílají do zařízení.</span></div>
   <p v-if="error" role="alert" class="error">{{error}}</p>
   <template v-if="state">

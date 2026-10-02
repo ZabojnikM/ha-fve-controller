@@ -16,6 +16,16 @@ Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění. Jde o potvrz
 
 ## Provoz
 
+### TUV přes Home Assistant (od verze 0.3.0)
+
+Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér obsahuje pouze GET `/core/api/states`, bez volání služeb a změn stavů.
+
+Každých 5 s načte jeden snímek HA a ponechá pouze uvedené entity. Právě jeden zapnutý přepínač určuje jmenovitý výkon 0/1000/2000/3000 W. Žádný nebo více zapnutých přepínačů, chybějící entita a unknown/unavailable znamenají neurčený stav. TUV nemá měření příkonu: zvolený stupeň nepotvrzuje fyzické sepnutí spirál. Stav čerpadla je rovněž hlášení HA, nikoli měření průtoku.
+
+Teploty musejí mít jednotku °C, číselnou hodnotu a čerstvý čas `last_reported` (u staršího HA fallback `last_updated`). Výchozí `ha_temperature_fresh_seconds` je 900 s. Čas hlášení HA nemusí být časem fyzického měření: integrační cache může stáří skrýt. U neměnných přepínačů se stáří změny nepoužívá jako timeout; ověřuje se aktuální příjem snímku. Po 20 s bez nového snímku nebo při chybě komunikace se hodnoty přestanou zobrazovat. Chybějící token a odmítnutí přístupu se zobrazí samostatně. Token, raw HA data a konfigurace se nevracejí přes API ani nelogují. Lokální běh bez tokenu zobrazuje chybějící přístup; token se nesmí ukládat do zdrojů.
+
+Živé TUV je pouze informační karta na `GET /api/tuv`; nevstupuje do simulovaného jádra, balancování ani SQLite historie. Node-RED zůstává vlastníkem řízení a nemění se. Po aktualizaci porovnejte obě teploty, čerpadlo a zvolený stupeň s HA. Automatizované testy nenahrazují ověření interního Supervisor přístupu na cílové instalaci.
+
 ### Victron přes stávající MQTT most (od verze 0.2.0)
 
 Samostatná karta „Victron · skutečná data“ čte z brokeru Mosquitto. Simulace pod ní zůstává oddělená: živé údaje nevstupují do doporučení, historie ani potvrzení balancování. Adaptér pouze odebírá přesné notifikační topics, nic nepublikuje. Stávající most musí nadále zajišťovat přísun dat a případný Victron keepalive; živý Node-RED se nemění.

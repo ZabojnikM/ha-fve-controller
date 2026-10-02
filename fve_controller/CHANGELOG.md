@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Čtení skutečných teplot TUV, čerpadla a celkového stupně ohřevu přes interní Home Assistant API, bez zadávání dalšího tokenu.
+- Nová živá karta TUV oddělená od simulace; výkon je označen jako jmenovitý, příkon se neměří.
+- Neurčený stupeň při chybějících nebo konfliktních stavech, kontrola stáří teplot a komunikace, obnova po výpadku.
+- Pouze čtení, žádné fyzické příkazy ani změny Node-RED. Živá historie a živá doporučení zatím nejsou připojené.
+
 ## 0.2.0
 
 - Čtecí adaptér Victron MQTT přes stávající broker a most: nastavitelné topics a samostatný panel skutečných dat.
