@@ -20,3 +20,17 @@ Historie uchovává pouze kompletní platné čerstvé vzorky; výpadky nejsou u
 - actionlint ověřil syntaxi a použití GitHub Actions bez nálezu.
 - Integrační test vydávacího skriptu na dočasném bare Git repozitáři ověřil první vydání, aktualizaci se zachováním historie, opakování a odmítnutí zastaralého zdrojového SHA.
 - Konečný obraz pro každou architekturu musí ještě projít nativními CI úlohami; teprve jejich úspěch dovolí vznik/aktualizaci stable.
+
+## Vydání 0.1.0 — 2. 10. 2026
+
+První vydání je zveřejněné: https://github.com/ZabojnikM/ha-fve-controller/releases/tag/v0.1.0 . Instalační URL: https://github.com/ZabojnikM/ha-fve-controller#stable .
+
+- [Kontrola projektu](https://github.com/ZabojnikM/ha-fve-controller/actions/runs/36920203567): úspěch na nativních amd64 i aarch64 runnerech.
+- [Vydávací workflow](https://github.com/ZabojnikM/ha-fve-controller/actions/runs/36966160957): úspěch všech úloh, včetně skutečného sestavení a spuštění obou kontejnerů, frontend buildu, Go testů/vet, SQLite při výměně kontejneru, Ingress ACL a relativních assetů.
+- Anonymní stažení všech vrstev ověřeno v CI i nezávisle z vývojového počítače. Obraz `ghcr.io/zabojnikm/ha-fve-controller:0.1.0` je dostupný bez přihlášení.
+- amd64 digest: `sha256:029904a98a5dbd79ff412b894e0c7c13d1dccc8efbff91056559db923f40e960`.
+- aarch64 (OCI arm64) digest: `sha256:39635e4090eb030766f2ce6abaaecda78f17b262dac6652f929e06a8c081fa10`.
+- Tag v0.1.0 a stable mají shodný Git strom. Stable vznikl až po úspěšném ověření GHCR. Nepoužit force push.
+- Veřejný obsah prošel kontrolou sledovaných souborů. Soukromé podklady nejsou v žádném publikovaném commitu.
+
+Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v CI, nikoli na místním Windows. Nadále nebyla provedena instalace přes skutečný Home Assistant Supervisor ani ověřeno uživatelovo HA/CPU. Zůstává čistá simulace bez fyzického ovládání. CI upozorňuje na starší runtime použitých akcí checkout@v4/buildx@v3; běhy úspěšně proběhly na vynuceném Node 24.
