@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Vlastní ikona v hlavičce, záložce prohlížeče, mobilním zástupci, dokumentaci a prezentaci doplňku v Home Assistantu.
+
 ## 0.1.0
 
 - První balení existujícího simulátoru pro instalaci přes repozitář Home Assistantu.

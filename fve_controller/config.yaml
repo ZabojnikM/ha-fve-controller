@@ -1,5 +1,5 @@
 name: FVE Controller
-version: "0.1.0"
+version: "0.1.1"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller

@@ -66,6 +66,11 @@ with tempfile.TemporaryDirectory() as directory:
                 html = response.read().decode()
             assets = re.findall(r'(?:src|href)="(\./assets/[^"]+)"', html)
             assert len(assets) >= 2, "Missing relative Ingress assets"
+            for icon in ("favicon.png", "app-icon.png", "apple-touch-icon.png"):
+                assert f'href="./{icon}"' in html, f"Missing relative icon: {icon}"
+                with urllib.request.urlopen(base + "/" + icon) as response:
+                    assert response.headers.get_content_type() == "image/png"
+                    assert response.read(8) == b"\x89PNG\r\n\x1a\n"
             for asset in assets:
                 with urllib.request.urlopen(base + "/" + asset) as response:
                     assert response.status == 200

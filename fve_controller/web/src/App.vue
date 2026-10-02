@@ -14,7 +14,7 @@ let timer:ReturnType<typeof setInterval>;onMounted(()=>{refresh();timer=setInter
 </script>
 <template>
 <main>
- <header><a class="brand" href="./"><span class="sun">☀</span> FVE <span class="muted">/ Controller</span></a><span class="badge">● SLEDOVACÍ REŽIM</span></header>
+ <header><a class="brand" href="./"><img class="brand-icon" :src="'./app-icon.png'" width="44" height="44" alt=""> FVE <span class="muted">/ Controller</span></a><span class="badge">● SLEDOVACÍ REŽIM</span></header>
  <div class="intro"><div><p class="eyebrow">ENERGIE POD DOHLEDEM</p><h1>Domácí energetika</h1><p class="muted">Jeden přehled pro baterii, teplou vodu a auto.</p></div><label>Simulační scénář<select :value="state?.scenario" :disabled="busy" @change="scenario"><option v-for="s in scenarios" :value="s[0]">{{s[1]}}</option></select></label></div>
  <div class="notice">SIMULACE <span>Všechna data jsou modelová. Doporučení se neodesílají do zařízení.</span></div>
  <p v-if="error" role="alert" class="error">{{error}}</p>

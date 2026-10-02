@@ -1,8 +1,10 @@
 # FVE Controller
 
+<img src="icon.png" alt="Ikona FVE Controller" width="96" height="96">
+
 Místní přehled baterie, TUV a Tesly pro Home Assistant. Go backend počítá doporučení, Vue/TypeScript zobrazuje modelové vstupy a SQLite uchovává historii a dokončení balancování.
 
-**Verze 0.1.0 je výhradně simulátor.** `observe_only=true`, `control_enabled=false`; neobsahuje klienty ani příkazy pro fyzická zařízení. Současný Node-RED může zůstat beze změny.
+**Verze 0.1.1 je výhradně simulátor.** `observe_only=true`, `control_enabled=false`; neobsahuje klienty ani příkazy pro fyzická zařízení. Současný Node-RED může zůstat beze změny.
 
 Instalační repozitář: `https://github.com/ZabojnikM/ha-fve-controller#stable`.
 

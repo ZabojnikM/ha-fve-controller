@@ -1,5 +1,7 @@
 # FVE Controller pro Home Assistant
 
+<img src="fve_controller/icon.png" alt="Ikona FVE Controller" width="96" height="96">
+
 Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená jako doplněk Home Assistantu. **Pouze simulace: observe_only=true, control_enabled=false.** Neodesílá žádné příkazy zařízením.
 
 ## Instalace

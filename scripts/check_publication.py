@@ -35,7 +35,13 @@ def check():
         if forbidden.search(name):
             errors.append(f"Forbidden tracked file: {name}")
             continue
-        content = (ROOT / name).read_text(encoding="utf-8-sig")
+        raw = (ROOT / name).read_bytes()
+        if name.lower().endswith(".png"):
+            assert raw.startswith(b"\x89PNG\r\n\x1a\n"), f"Invalid PNG: {name}"
+            # Still scan readable metadata for secrets; PNG pixels are binary.
+            content = raw.decode("latin-1")
+        else:
+            content = raw.decode("utf-8-sig")
         if secrets.search(content):
             errors.append(f"Potential secret/private identifier: {name}")
         for match in re.findall(r"(?<![\w.])(?:\d{1,3}\.){3}\d{1,3}(?![\w.])", content):
