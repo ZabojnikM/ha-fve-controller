@@ -3,12 +3,37 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fve-controller/internal/victron"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestVictronAPIIngressAndPrivacy(t *testing.T) {
+	a := &App{victron: victron.New(victron.Config{Password: "test-secret"})}
+	h := a.handler(t.TempDir(), true)
+	for _, peer := range []string{"1.2.3.4:1000", "172.30.32.2:1000"} {
+		r := httptest.NewRequest("GET", "/api/victron", nil)
+		r.RemoteAddr = peer
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if peer == "1.2.3.4:1000" {
+			if w.Code != 403 {
+				t.Fatal("telemetry must stay behind ingress")
+			}
+			continue
+		}
+		if w.Code != 200 || strings.Contains(w.Body.String(), "test-secret") {
+			t.Fatal("telemetry response leaks credentials or fails")
+		}
+		var snapshot victron.Snapshot
+		if err := json.Unmarshal(w.Body.Bytes(), &snapshot); err != nil || snapshot.Enabled || snapshot.Connected {
+			t.Fatal("default must remain disabled")
+		}
+	}
+}
 
 func TestAPIAndPersistence(t *testing.T) {
 	db, err := sql.Open("sqlite", filepath.Join(t.TempDir(), "test.db"))

@@ -4,7 +4,7 @@
 
 Místní přehled baterie, TUV a Tesly pro Home Assistant. Go backend počítá doporučení, Vue/TypeScript zobrazuje modelové vstupy a SQLite uchovává historii a dokončení balancování.
 
-**Verze 0.1.1 je výhradně simulátor.** `observe_only=true`, `control_enabled=false`; neobsahuje klienty ani příkazy pro fyzická zařízení. Současný Node-RED může zůstat beze změny.
+**Verze 0.2.0 čte Victron přes MQTT a obsahuje oddělený simulátor.** `observe_only=true`, `control_enabled=false`; neposílá příkazy fyzickým zařízením. MQTT zapněte a nastavte v konfiguraci doplňku. Současný Node-RED může zůstat beze změny.
 
 Instalační repozitář: `https://github.com/ZabojnikM/ha-fve-controller#stable`.
 

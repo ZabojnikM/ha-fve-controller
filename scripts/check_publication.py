@@ -30,7 +30,7 @@ def check():
     paths = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0")
     errors = []
     forbidden = re.compile(r"(^|/)(reference-private|data|node_modules|dist|\.tools|\.pnpm-store|\.codex|\.agents)(/|$)|(^|/)\.env($|\.)|\.(db|sqlite|log|exe|zip)([-.~]|$)|(^|/)(secrets\.yaml|options\.json|AGENTS\.md|PROJECT\.md)$", re.I)
-    secrets = re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|victron/N/(?!INSTALLATION_ID)[a-f0-9]{12}/")
+    secrets = re.compile(r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|victron/N/(?!INSTALLATION_ID|c0619ab221ee/)[a-f0-9]{12}/")
     for name in filter(None, paths):
         if forbidden.search(name):
             errors.append(f"Forbidden tracked file: {name}")

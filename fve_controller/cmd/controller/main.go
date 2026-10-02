@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fve-controller/internal/core"
+	"fve-controller/internal/victron"
 	"log"
 	_ "modernc.org/sqlite"
 	"net"
@@ -20,6 +21,7 @@ type App struct {
 	engine   core.Engine
 	scenario string
 	state    map[string]any
+	victron  *victron.Reader
 }
 
 func env(k, v string) string {
@@ -53,6 +55,21 @@ func (a *App) tick(now time.Time) error {
 		in.Manual = true
 		in.ManualWatts = 2000
 	}
+	in.SolarRoof = sample(2600, "W", now)
+	in.SolarShelter = sample(1400, "W", now)
+	in.SolarFence = sample(600, "W", now)
+	switch a.scenario {
+	case "zero":
+		in.SolarRoof.Value, in.SolarShelter.Value, in.SolarFence.Value = 450, 250, 100
+	case "night":
+		in.SolarRoof.Value, in.SolarShelter.Value, in.SolarFence.Value = 0, 0, 0
+		in.Battery.Value, in.TUV.Value, in.SOC.Value = -800, 0, 70
+	case "stale":
+		in.SolarFence.At = now.Add(-time.Minute)
+	case "invalid":
+		in.SolarShelter.Valid = false
+	}
+	in.SolarTotal = core.SolarSum(now, [3]core.Sample{in.SolarRoof, in.SolarShelter, in.SolarFence})
 	d := a.engine.Step(now, in)
 	if !d.LastBalance.IsZero() {
 		if _, err := a.db.Exec("INSERT INTO settings(key,value) VALUES('simulation_last_balance',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", d.LastBalance.Format(time.RFC3339Nano)); err != nil {
@@ -63,11 +80,14 @@ func (a *App) tick(now time.Time) error {
 	for k, s := range map[string]core.Sample{"soc": in.SOC, "battery": in.Battery, "temperature": in.Temperature, "min_cell": in.MinCell, "max_cell": in.MaxCell, "tuv": in.TUV, "car": in.Car} {
 		quality[k] = s.Quality(now)
 	}
+	for k, s := range map[string]core.Sample{"solar_roof": in.SolarRoof, "solar_shelter": in.SolarShelter, "solar_fence": in.SolarFence, "solar_total": in.SolarTotal} {
+		quality[k] = s.Quality(now)
+	}
 	a.state = map[string]any{"observe_only": true, "control_enabled": false, "source": "simulator", "scenario": a.scenario, "at": now, "input": in, "quality": quality, "decision": d, "outputs": map[string]any{"tuv": map[string]any{"desired": d.TUV, "sent": nil, "confirmed": in.TUV.Value, "status": "observe_only", "owner": "none"}, "car": map[string]any{"desired": d.Car, "sent": nil, "confirmed": in.Car.Value, "status": "observe_only", "owner": "none"}}}
 	// History stores only fresh valid samples, never disguises an outage as a measurement.
 	complete := true
-	for _, q := range quality {
-		if q != "valid" {
+	for _, k := range []string{"soc", "battery", "temperature", "min_cell", "max_cell", "tuv", "car"} {
+		if quality[k] != "valid" {
 			complete = false
 		}
 	}
@@ -83,6 +103,14 @@ func (a *App) tick(now time.Time) error {
 }
 func (a *App) handler(web string, ingress bool) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/victron", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		reader := a.victron
+		if reader == nil {
+			reader = victron.New(victron.Config{})
+		}
+		json.NewEncoder(w).Encode(reader.Snapshot(time.Now()))
+	})
 	mux.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
 		a.mu.Lock()
 		defer a.mu.Unlock()
@@ -98,7 +126,7 @@ func (a *App) handler(web string, ingress bool) http.Handler {
 			return
 		}
 		switch body.Name {
-		case "sunny", "zero", "critical", "hot", "stale", "invalid", "overload", "balance", "manual":
+		case "sunny", "zero", "night", "critical", "hot", "stale", "invalid", "overload", "balance", "manual":
 		default:
 			http.Error(w, "Unknown scenario", 400)
 			return
@@ -170,6 +198,13 @@ func main() {
 		log.Fatal(err)
 	}
 	a := &App{db: db, scenario: "sunny"}
+	mqttConfig, err := victron.Load(env("OPTIONS_PATH", filepath.Join(dir, "options.json")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	a.victron = victron.New(mqttConfig)
+	a.victron.Start()
+	defer a.victron.Close()
 	var last string
 	err = db.QueryRow("SELECT value FROM settings WHERE key='simulation_last_balance'").Scan(&last)
 	if err == nil {

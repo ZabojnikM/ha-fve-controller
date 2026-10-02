@@ -13,13 +13,13 @@ COPY . .
 RUN CGO_ENABLED=0 go test ./... && go vet ./... && CGO_ENABLED=0 go build -trimpath -o /controller ./cmd/controller
 
 FROM alpine:3.22.3@sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
-ARG VERSION=0.1.1
+ARG VERSION=0.2.0
 ARG REVISION=local
 LABEL org.opencontainers.image.title="FVE Controller" \
       org.opencontainers.image.source="https://github.com/ZabojnikM/ha-fve-controller" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
-      org.opencontainers.image.description="Observe-only FVE simulator for Home Assistant"
+      org.opencontainers.image.description="Read-only Victron telemetry and FVE simulator for Home Assistant"
 WORKDIR /app
 COPY --from=backend /controller /app/controller
 COPY --from=frontend /src/web/dist /app/web

@@ -1,9 +1,9 @@
 name: FVE Controller
-version: "0.1.1"
+version: "0.2.0"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller
-description: Simulovaný koordinátor FVE, TUV a Tesly bez ovládání zařízení
+description: Sledování Victronu přes MQTT a simulovaný koordinátor bez ovládání zařízení
 arch:
   - amd64
   - aarch64
@@ -13,7 +13,35 @@ init: false
 ingress: true
 ingress_port: 8099
 panel_icon: mdi:solar-power
-options: {}
-schema: {}
+options:
+  mqtt_enabled: false
+  mqtt_host: core-mosquitto
+  mqtt_port: 1883
+  mqtt_username: ""
+  mqtt_password: ""
+  mqtt_fresh_seconds: 60
+  mqtt_topics:
+    min_cell: victron/N/c0619ab221ee/battery/99/System/MinCellVoltage
+    max_cell: ""
+    soc: victron/N/c0619ab221ee/battery/278/Soc
+    battery: victron/N/c0619ab221ee/battery/278/Dc/0/Power
+    solar_roof: victron/N/c0619ab221ee/solarcharger/0/Yield/Power
+    solar_shelter: victron/N/c0619ab221ee/solarcharger/278/Yield/Power
+    solar_fence: victron/N/c0619ab221ee/solarcharger/1/Yield/Power
+schema:
+  mqtt_enabled: bool
+  mqtt_host: str
+  mqtt_port: port
+  mqtt_username: str
+  mqtt_password: password
+  mqtt_fresh_seconds: int(5,3600)
+  mqtt_topics:
+    min_cell: str
+    max_cell: str
+    soc: str
+    battery: str
+    solar_roof: str
+    solar_shelter: str
+    solar_fence: str
 homeassistant_api: false
 hassio_api: false

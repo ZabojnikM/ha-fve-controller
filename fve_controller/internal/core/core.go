@@ -24,6 +24,10 @@ func (s Sample) Quality(now time.Time) string {
 }
 
 type Input struct {
+	SolarRoof      Sample  `json:"solar_roof"`
+	SolarShelter   Sample  `json:"solar_shelter"`
+	SolarFence     Sample  `json:"solar_fence"`
+	SolarTotal     Sample  `json:"solar_total"`
 	SOC            Sample  `json:"soc"`
 	Battery        Sample  `json:"battery"`
 	Temperature    Sample  `json:"temperature"`
@@ -38,6 +42,31 @@ type Input struct {
 	ManualWatts    float64 `json:"manual_watts"`
 	BalanceRequest bool    `json:"balance_request"`
 }
+
+// SolarSum is available only when all three strings have usable power readings.
+// Keep the oldest timestamp so an outdated string cannot become a fresh total.
+func SolarSum(now time.Time, strings [3]Sample) Sample {
+	total := Sample{Unit: "W", At: strings[0].At, Valid: true, Source: "calculated"}
+	for _, s := range strings {
+		if s.At.Before(total.At) {
+			total.At = s.At
+		}
+		if s.Quality(now) == "invalid" || s.Value < 0 || s.Unit != "W" {
+			total.Valid = false
+		}
+		if s.At.After(now) {
+			total.Valid = false
+		}
+		if s.Quality(now) == "valid" && s.Value >= 0 && s.Unit == "W" {
+			total.Value += s.Value
+		}
+	}
+	if total.Quality(now) != "valid" {
+		total.Value = 0
+	}
+	return total
+}
+
 type Decision struct {
 	Mode        string    `json:"mode"`
 	Reason      string    `json:"reason"`

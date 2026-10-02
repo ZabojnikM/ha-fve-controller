@@ -1,5 +1,30 @@
 # Ověření 1. 10. 2026
 
+## Čtecí adaptér Victron MQTT — místní úprava 2. 10. 2026
+
+- Go testy ověřují rozlišení nuly, chybějící hodnoty, null/prázdného/poškozeného payloadu, zastarání, retained zprávy, výpadku a resetu po reconnectu. Znaménko baterie se zachovává; potvrzení znaménka na instalaci je stále otevřené.
+- Lokální anonymizovaný MQTT broker fixture ověřil skutečnou cestu CONNECT → SUBSCRIBE → příjem výkonu → DISCONNECT; klient neposlal PUBLISH. Odmítnutý nebo chybějící SUBACK není úspěšný odběr. API je chráněné stejným Ingress ACL a neobsahuje přístupové údaje.
+- Kontrola TypeScriptu a produkční Vite build prošly přímým spuštěním instalovaných nástrojů (pnpm wrapper vyžadoval nevyžádanou reinstalaci). Vizuálně ověřen desktop a mobil 390 × 844 px: platná nula, napětí 3,274 V, nenastavené topics a následné zastarání hodnot s pomlčkou. Mobil bez vodorovného přetékání, konzole bez chyb a varování.
+- Oficiální dokumentace znovu ověřena: [apps konfigurace](https://developers.home-assistant.io/docs/apps/configuration/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/), [Supervisor API](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [HA MQTT](https://www.home-assistant.io/integrations/mqtt/) a [Victron dbus-flashmq](https://github.com/victronenergy/dbus-flashmq). Použit Eclipse Paho 1.5.1.
+- Živé údaje jsou oddělené od simulátoru, jeho historie a balancování. MQTT nic nepublikuje; keepalive zůstává na existujícím mostu. Zdrojové stáří nelze určit pouze z času příjmu do brokeru. HA/CPU, most, autentizace a skutečné topics musejí být ověřené při nasazení. Úprava nebyla vydaná ani nasazená, uživatelův Mosquitto zatím nebyl připojen.
+
+## Frontend inspirovaný evcc — místní úprava 2. 10. 2026
+
+- Kontrola TypeScriptu (`vue-tsc --noEmit`) a produkční sestavení (`vite build`) prošly přímým spuštěním instalovaných nástrojů přes Node. Příkaz pnpm zastavil automatický pokus o přeinstalaci závislostí kvůli chybějícímu TTY; závislosti ani lockfile nebyly změněny.
+- Vizuálně ověřen produkční frontend nad místním simulátorem: desktop a mobil 390 × 844 px, bez vodorovného přetékání. Zkontrolovány karty spotřebičů, noc s platnou nulou, zastaralá měření s pomlčkou a blokací a kritické SOC s doporučením síť+nabíjení. Konzole bez varování a chyb.
+- Náhled je uložen místně v ignorovaném `artifacts/evcc-frontend-desktop.jpg`. Backend, protokol API a fyzické řízení touto úpravou nejsou měněny. Úprava nebyla vydána ani nasazena do HA.
+
+## Aktualizace 0.1.0 → 0.1.1 — potvrzeno 2. 10. 2026
+
+- [Vydání 0.1.1](https://github.com/ZabojnikM/ha-fve-controller/releases/tag/v0.1.1) obsahuje novou ikonu aplikace.
+- [Kontrola projektu](https://github.com/ZabojnikM/ha-fve-controller/actions/runs/36967924500) i [vydávací workflow](https://github.com/ZabojnikM/ha-fve-controller/actions/runs/36968056247) úspěšně dokončily všechny úlohy. Zdrojový commit: `2592260c2c04d47ed48258fcc07169fb621f13f0`.
+- Na nativních amd64 a aarch64 runnerech prošly sestavení, Go testy/vet, spuštění kontejnerů, zachování SQLite při výměně kontejneru, Ingress ACL a poskytování PNG ikon. Před aktualizací stable prošlo anonymní stažení obrazů.
+- Uživatel následně potvrdil: „aktualizace funguje správně“. Tím je potvrzený praktický průchod vydáním a aktualizací v jeho Home Assistantu na Raspberry Pi 4.
+- Přesný typ instalace HA a architekturu OS uživatel nedoložil. Záloha a zachování historie na jeho zařízení nebyly samostatně potvrzené; test perzistence výše je výsledek CI.
+- Aplikace zůstává simulátorem v observe_only, bez příkazů fyzickým zařízením. Starší omezení níže popisují stav v době dané etapy.
+
+## Historické výsledky
+
 Aktualizace 2. 10. 2026: uživatel potvrdil, že je doplněk nainstalovaný v Home Assistantu a běží. Instalace uspěla s čistou URL `https://github.com/ZabojnikM/ha-fve-controller#stable`. Předchozí chyba klonování vznikla vložením Markdown odkazu a cesty `/tree/stable`. Typ HA, CPU a podrobný test Ingressu tímto potvrzením doloženy nejsou. Níže jsou zachované historické výsledky jednotlivých etap.
 
 - Go 1.27.1: `go test -cover ./...` úspěšný; jádro 96,9 %, HTTP/server 39,8 % statement coverage. `go vet ./...` bez nálezu.

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0
+
+- Čtecí adaptér Victron MQTT přes stávající broker a most: nastavitelné topics a samostatný panel skutečných dat.
+- Rozlišení čekání na první zprávu, neplatných, zastaralých a retained údajů; restart ani odpojení neobnovují staré měření jako aktuální.
+- Přístupové údaje pouze v backendové konfiguraci. Adaptér nic nepublikuje, fyzické řízení zůstává vypnuté a simulace oddělená.
+
+- Světlý frontend inspirovaný evcc: barevný podíl solárních stringů, samostatné karty TUV a Tesly, výrazné hodnoty a mobilní rozložení.
+- Karty oddělují simulovaný výkon a doporučení; při ztrátě spojení se aktuální hodnoty a doporučení skryjí.
+- Solární výroba: aktuální simulovaný výkon stringů Střecha, Přístřešek a Plot a jejich celkový výkon ve W.
+- Rozlišení nulové výroby, neplatného a zastaralého měření; noční scénář s nulovou výrobou.
+
 ## 0.1.1
 
 - Vlastní ikona v hlavičce, záložce prohlížeče, mobilním zástupci, dokumentaci a prezentaci doplňku v Home Assistantu.

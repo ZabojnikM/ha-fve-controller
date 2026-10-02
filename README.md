@@ -2,7 +2,7 @@
 
 <img src="fve_controller/icon.png" alt="Ikona FVE Controller" width="96" height="96">
 
-Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená jako doplněk Home Assistantu. **Pouze simulace: observe_only=true, control_enabled=false.** Neodesílá žádné příkazy zařízením.
+Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená jako doplněk Home Assistantu. **Čtení Victronu přes MQTT a oddělená simulace: observe_only=true, control_enabled=false.** Neodesílá žádné příkazy zařízením.
 
 ## Instalace
 
@@ -23,7 +23,7 @@ Větev `stable` obsahuje vydané verze. `main` je vývojová větev, nepřidáve
 3. Obnovte seznam, otevřete **FVE Controller**, zvolte Instalovat a po dokončení Spustit.
 4. Otevřete webové rozhraní. Musí být označeno SIMULACE a SLEDOVACÍ REŽIM. Tokeny ani přihlašovací údaje pro GHCR nejsou potřeba.
 
-Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění doplňku v Home Assistantu. Typ instalace a CPU nejsou v tomto potvrzení uvedené; před další instalací je ověřte v systémových informacích.
+Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a následnou aktualizaci z 0.1.0 na 0.1.1 v Home Assistantu na Raspberry Pi 4. Přesný typ instalace a architektura OS nejsou doložené ze systémových informací. Podrobnosti jsou v [záznamu ověření](docs/VALIDATION.md).
 
 ## Dokumentace
 
