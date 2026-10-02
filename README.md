@@ -6,18 +6,22 @@ Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená ja
 
 Do obchodu doplňků/apps přidejte repozitář:
 
+[Instalační repozitář FVE Controller — stable](https://github.com/ZabojnikM/ha-fve-controller#stable)
+
 ```text
 https://github.com/ZabojnikM/ha-fve-controller#stable
 ```
 
-Větev `stable` vznikne až úspěšným prvním vydáním. `main` je vývojová větev, nepřidávejte ji do HA. Vydání se nabídne až po nativním sestavení a spuštění obrazů obou architektur a po ověření veřejného přístupu ke všem vrstvám GHCR.
+Do pole v HA kopírujte pouze čistou URL z bloku výše. Nevkládejte Markdown se závorkami `[text](url)` ani adresu stránky větve s `/tree/stable`; správná URL končí `#stable`.
+
+Větev `stable` obsahuje vydané verze. `main` je vývojová větev, nepřidávejte ji do HA. Vydání se nabídne až po nativním sestavení a spuštění obrazů obou architektur a po ověření veřejného přístupu ke všem vrstvám GHCR.
 
 1. V systémových informacích HA ověřte typ instalace a architekturu. Apps podporuje Home Assistant OS; samotný Home Assistant Container nemá Supervisor/obchod apps.
 2. Nastavení → Aplikace (ve starších verzích Doplňky) → Obchod → nabídka ⋮ → Repozitáře. Vložte výše uvedenou URL včetně `#stable`.
 3. Obnovte seznam, otevřete **FVE Controller**, zvolte Instalovat a po dokončení Spustit.
 4. Otevřete webové rozhraní. Musí být označeno SIMULACE a SLEDOVACÍ REŽIM. Tokeny ani přihlašovací údaje pro GHCR nejsou potřeba.
 
-Ověření instalačního prostředí je nutné před instalací; skutečná instalace přes Supervisor zatím nebyla testovaná.
+Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění doplňku v Home Assistantu. Typ instalace a CPU nejsou v tomto potvrzení uvedené; před další instalací je ověřte v systémových informacích.
 
 ## Dokumentace
 

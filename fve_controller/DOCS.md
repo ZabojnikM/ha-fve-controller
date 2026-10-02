@@ -1,5 +1,21 @@
 # Spuštění simulátoru
 
+## Odkaz pro instalaci v Home Assistantu
+
+[Repozitář FVE Controller — stable](https://github.com/ZabojnikM/ha-fve-controller#stable)
+
+Do pole Repozitáře v obchodě HA zkopírujte pouze tento text:
+
+```text
+https://github.com/ZabojnikM/ha-fve-controller#stable
+```
+
+Nevkládejte Markdown `[text](url)` ani adresu obsahující `/tree/stable`. Pokud clone skončí chybou „repository not found“, odstraňte chybný záznam a vložte čistou URL výše.
+
+Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění. Jde o potvrzení běhu doplňku, nikoli o ověření fyzického řízení nebo všech funkcí Ingressu.
+
+## Provoz
+
 V lokálním vývoji: v `web` spusťte `pnpm install --frozen-lockfile` a `pnpm build`. Poté ze složky doplňku `go run ./cmd/controller`. Otevřete http://127.0.0.1:8099. Vyžaduje Go >=1.25, Node 24 a pnpm 11.25.0. SQLite se vytvoří v `data/simulation.db`. Proměnné DATA_DIR, WEB_DIR a LISTEN_ADDR mění cesty a adresu. Výchozí lokální server poslouchá pouze na loopbacku.
 
 Pro Home Assistant OS nejprve ověřte typ instalace a CPU v systémových informacích. V Nastavení → Aplikace/Doplňky → Obchod → ⋮ → Repozitáře přidejte `https://github.com/ZabojnikM/ha-fve-controller#stable`. Obnovte obchod, vyberte FVE Controller, Instalovat, Spustit a Otevřít webové rozhraní. Větev stable vzniká pouze po úspěšném vydání. Home Assistant stáhne hotový veřejný obraz z GHCR bez přihlašování. Docker nastavuje INGRESS_ONLY=true a port 8099 je dostupný jen proxy 172.30.32.2; není publikován na hostiteli. Vydání zveřejní amd64 a aarch64 až po jejich nativním sestavení a testu. Skutečný Supervisor/Ingress je ještě nutné ověřit na cílovém systému. Home Assistant Container apps nepodporuje.

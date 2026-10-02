@@ -1,5 +1,7 @@
 # Ověření 1. 10. 2026
 
+Aktualizace 2. 10. 2026: uživatel potvrdil, že je doplněk nainstalovaný v Home Assistantu a běží. Instalace uspěla s čistou URL `https://github.com/ZabojnikM/ha-fve-controller#stable`. Předchozí chyba klonování vznikla vložením Markdown odkazu a cesty `/tree/stable`. Typ HA, CPU a podrobný test Ingressu tímto potvrzením doloženy nejsou. Níže jsou zachované historické výsledky jednotlivých etap.
+
 - Go 1.27.1: `go test -cover ./...` úspěšný; jádro 96,9 %, HTTP/server 39,8 % statement coverage. `go vet ./...` bez nálezu.
 - Sestaven Windows backend a Linux amd64 i arm64 s CGO_ENABLED=0. SQLite je pure Go.
 - `pnpm build`: úspěšná kontrola TypeScriptu a produkční build Vite. Použité závislosti jsou v lockfile.
