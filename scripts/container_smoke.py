@@ -60,6 +60,11 @@ with tempfile.TemporaryDirectory() as directory:
             assert tuv["status"] == "no_token", "Standalone container must not invent HA access"
             assert tuv["nominal_power"]["value"] is None
             assert len(tuv["readings"]) == 7
+            tesla = get("/api/tesla")
+            assert tesla["enabled"] is True and tesla["connected"] is False
+            assert tesla["status"] == "no_token"
+            assert len(tesla["readings"]) == 6
+            assert all(r["value"] is None for r in tesla["readings"].values())
             assert state["observe_only"] is True and state["control_enabled"] is False
             assert state["decision"]["last_balance"] == last_balance
             assert all(o["sent"] is None for o in state["outputs"].values())

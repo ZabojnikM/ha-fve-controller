@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Živá karta Tesly: SOC, kabel, stav nabíjení, výkon a skutečný proud, zvlášť nastavený proud.
+- Čtení existujících entit HA ve společném snímku s TUV; žádné přímé volání Tessie, probouzení auta ani řízení nabíjení.
+- Nastavitelné entity, rozlišení chybějících/neplatných/zastaralých dat, převod W/kW a zachování platné nuly.
+- Živé hodnoty zůstávají oddělené od simulačních doporučení a historie.
+
 ## 0.3.0
 
 - Čtení skutečných teplot TUV, čerpadla a celkového stupně ohřevu přes interní Home Assistant API, bez zadávání dalšího tokenu.

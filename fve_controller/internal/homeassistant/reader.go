@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -19,10 +20,16 @@ type Config struct {
 	Enabled                 bool              `json:"ha_enabled"`
 	TemperatureFreshSeconds int               `json:"ha_temperature_fresh_seconds"`
 	Entities                map[string]string `json:"ha_entities"`
+	TeslaEnabled            bool              `json:"tesla_enabled"`
+	TeslaFreshSeconds       int               `json:"tesla_fresh_seconds"`
+	TeslaEntities           map[string]string `json:"tesla_entities"`
 }
 
 func DefaultConfig() Config {
-	return Config{Enabled: true, TemperatureFreshSeconds: 900, Entities: map[string]string{
+	return Config{Enabled: true, TemperatureFreshSeconds: 900, TeslaEnabled: true, TeslaFreshSeconds: 900, TeslaEntities: map[string]string{
+		"connected": "binary_sensor.nabijeci_kabel", "soc": "sensor.uroven_baterie", "charging": "sensor.nabijeni",
+		"current": "sensor.proud_nabijecky", "power": "sensor.vykon_nabijecky", "current_limit": "number.nabijeci_proud",
+	}, Entities: map[string]string{
 		"upper": "sensor.tepla_voda", "lower": "sensor.tuv_1", "pump": "switch.kicony_kc868_a16_y04",
 		"stage_0": "switch.tuv_0kw", "stage_1": "switch.tuv_1kw", "stage_2": "switch.tuv_2kw", "stage_3": "switch.tuv_3kw",
 	}}
@@ -43,7 +50,7 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 
-var entityPattern = regexp.MustCompile(`^(sensor|switch)\.[a-z0-9_]+$`)
+var entityPattern = regexp.MustCompile(`^(sensor|switch|binary_sensor|number)\.[a-z0-9_]+$`)
 
 func (c Config) Validate() error {
 	if !c.Enabled {
@@ -55,13 +62,31 @@ func (c Config) Validate() error {
 	seen := map[string]bool{}
 	for key, expected := range DefaultConfig().Entities {
 		entity := c.Entities[key]
-		if !entityPattern.MatchString(entity) || entity[:6] != expected[:6] || seen[entity] {
+		if !entityPattern.MatchString(entity) || strings.SplitN(entity, ".", 2)[0] != strings.SplitN(expected, ".", 2)[0] || seen[entity] {
 			return errors.New("neplatné nebo duplicitní entity TUV")
 		}
 		seen[entity] = true
 	}
 	if len(c.Entities) != 7 {
 		return errors.New("neznámá entita TUV")
+	}
+	if c.TeslaEnabled {
+		if c.TeslaFreshSeconds < 30 || c.TeslaFreshSeconds > 86400 {
+			return errors.New("neplatné stáří dat Tesly")
+		}
+		if len(c.TeslaEntities) != 6 {
+			return errors.New("neznámá entita Tesly")
+		}
+		for key, expected := range DefaultConfig().TeslaEntities {
+			entity := c.TeslaEntities[key]
+			if entity == "" {
+				continue
+			} // Optional measurements can remain unconfigured.
+			if !entityPattern.MatchString(entity) || strings.SplitN(entity, ".", 2)[0] != strings.SplitN(expected, ".", 2)[0] || seen[entity] {
+				return errors.New("neplatné nebo duplicitní entity Tesly")
+			}
+			seen[entity] = true
+		}
 	}
 	return nil
 }
@@ -78,6 +103,7 @@ type State struct {
 
 type Reading struct {
 	Value    *float64   `json:"value"`
+	Text     *string    `json:"text,omitempty"`
 	Unit     string     `json:"unit"`
 	Quality  string     `json:"quality"`
 	SourceAt *time.Time `json:"source_at"`
@@ -149,6 +175,13 @@ func (r *Reader) poll(ctx context.Context) {
 		for key, entity := range r.config.Entities {
 			if s.EntityID == entity {
 				selected[key] = s
+			}
+		}
+		if r.config.TeslaEnabled {
+			for key, entity := range r.config.TeslaEntities {
+				if entity != "" && s.EntityID == entity {
+					selected["tesla_"+key] = s
+				}
 			}
 		}
 	}

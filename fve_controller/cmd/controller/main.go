@@ -106,6 +106,14 @@ func (a *App) tick(now time.Time) error {
 }
 func (a *App) handler(web string, ingress bool) http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/tesla", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		reader := a.ha
+		if reader == nil {
+			reader = homeassistant.New(homeassistant.Config{}, "")
+		}
+		json.NewEncoder(w).Encode(reader.TeslaSnapshot(time.Now()))
+	})
 	mux.HandleFunc("GET /api/tuv", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		reader := a.ha

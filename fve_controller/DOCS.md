@@ -16,6 +16,18 @@ Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění. Jde o potvrz
 
 ## Provoz
 
+### Tesla přes Home Assistant (od verze 0.4.0)
+
+Karta „Tesla · skutečná data“ čte existující entity HA. Výchozí mapování z původních podkladů je nastavitelné v `tesla_entities`: kabel `binary_sensor.nabijeci_kabel`, SOC `sensor.uroven_baterie`, stav nabíjení `sensor.nabijeni`, skutečný proud `sensor.proud_nabijecky`, výkon `sensor.vykon_nabijecky` a nastavený proud `number.nabijeci_proud`. Živou platnost těchto názvů ověřte po aktualizaci. Neexistující entita zneplatní pouze vlastní údaj. Neznámý údaj lze nechat prázdný; zobrazí se jako nenastavený.
+
+`tesla_enabled` je výchozím nastavením true; `ha_enabled` povoluje společný čtecí adaptér pro TUV i Teslu. Obě karty používají jediný snímek HA každých 5 s a existující interní přístup Supervisoru. Nezadává se Tessie token, auto se neprobouzí a nevolají se žádné fyzické příkazy. Nastavený proud je pouze nastavení hlášené HA; není to skutečný proud, odeslaný příkaz našeho doplňku ani jeho potvrzení. Výkon se čte výhradně ze senzoru nabíječky, nikoli z elektroměru celé fáze nebo odhadu proud × napětí. Jednotky W a kW se převádějí na W; proud vyžaduje A a SOC %. Platná nula zůstává nulou.
+
+Stav nabíjení podporuje standardní Tessie hodnoty `starting`, `charging`, `stopped`, `complete`, `disconnected`, `no_power` a původní `NoPower`; rozlišuje je od unknown/unavailable a neznámých hodnot. Přeložený text v UI HA není zdrojový stav entity. Při neplatném stavu se zobrazí pomlčka, nic se neodvozuje ze zapnutého přepínače nabíjení.
+
+Každý údaj Tesly včetně kabelu má limit `tesla_fresh_seconds` (výchozí 900 s) podle `last_reported`, případně `last_updated`. Staré nebo budoucí časové razítko, unknown/unavailable, chybná jednotka a výpadek komunikace nejsou aktuální údaje. Příjem snímku HA sám nepotvrzuje čerstvost Tessie: integrace může znovu hlásit mezipaměť. U spícího auta může být karta zastaralá; doplněk ho kvůli čtení neprobouzí. Živé údaje nevstupují do simulace ani SQLite historie a API `/api/tesla` nezveřejňuje polohu, identifikátory auta, raw HA data nebo token.
+
+Oficiální zdroje ověřené před implementací: [komunikace HA apps](https://developers.home-assistant.io/docs/apps/communication/), [REST API](https://developers.home-assistant.io/docs/api/rest/), [Tessie](https://www.home-assistant.io/integrations/tessie/), [stavy v integraci Tessie](https://github.com/home-assistant/core/blob/dev/homeassistant/components/tessie/const.py).
+
 ### TUV přes Home Assistant (od verze 0.3.0)
 
 Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér obsahuje pouze GET `/core/api/states`, bez volání služeb a změn stavů.

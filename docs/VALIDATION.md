@@ -70,3 +70,12 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 - Vizuální kontrola v Chromiu: desktop 1280 px a mobil 390 px, bez horizontálního přetečení. Ověřeny platné anonymizované vzorky, zastaralá teplota, konfliktní stupeň, chybějící Supervisor token a chyba backendu. Bez chyb JavaScriptu.
 - Lokálně není přístup k uživatelovu HA. Interní proxy, jednotky a aktualizace teplot na konkrétní instalaci ověří uživatel po aktualizaci. Živá data zůstávají oddělená od simulace, neukládají se do SQLite; Node-RED ani fyzické výstupy se nemění.
 - Oficiální dokumentace HA apps konfigurace, komunikace, Ingress, Supervisor endpoints, REST API a MQTT byla ověřena v tomto sezení před implementací. Pro přístup k Core se používá homeassistant_api, nikoli rozšířené hassio_api.
+
+## Čtení Tesly 0.4.0 — 2. 10. 2026
+
+- Rozšířen stávající čtecí HA adaptér: TUV a Tesla sdílejí jeden GET snímek každých 5 s. Přímé Tessie API, probouzení auta a fyzické příkazy nejsou implementované.
+- Go testy všech balíčků a go vet prošly. Anonymizované Tesla fixtures ověřují převod kW/W, platnou nulu, SOC a jednotky, neplatné/unknown/unavailable stavy, stáří zdroje a budoucí čas, timeout, obnovu, oddělení skutečného a nastaveného proudu, volitelné entity a kompatibilitu starých options.json.
+- Test společného polling cyklu ověřuje pouze jeden GET pro TUV i Teslu a nepřenášení polohy nebo nevybraných údajů. API test chrání /api/tesla Ingressem a ověřuje absenci tokenu a konfigurace. Kontejnerový smoke test doplněn o bezpečný stav Tesly bez Supervisor tokenu.
+- Vue/TypeScript a Vite produkční build prošly. Chromium desktop 1280 px a mobil 390 px bez horizontálního přetečení a chyb JavaScriptu; vizuálně ověřeno nabíjení, odpojení s platnou nulou, částečná/neplatná/zastaralá data a nedostupný backend. Znovu prošla kontrola karty TUV.
+- Výchozí Tesla entity pocházejí z původního Node-RED a dashboardu, nikoli z místního živého HA. Aktuální mapování a jednotky ověří uživatel na cílové instalaci. HA čas hlášení není důkazem čerstvosti fyzického měření Tessie.
+- Ověřeny oficiální REST/komunikační dokumentace HA a zdrojový seznam charge states integrace Tessie. Živá doporučení a historie zůstávají nepřipojené.
