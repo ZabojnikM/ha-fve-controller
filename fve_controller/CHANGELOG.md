@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Hlavní energetický přehled napojen na skutečnou výrobu, domácí baterii, TUV a Teslu. Bez nahrazování chybějících živých údajů simulací.
+- Součet výroby pouze z platných dat všech tří stringů; rozlišení nuly, zastaralých údajů, chyb a výpadků jednotlivých zdrojů.
+- TUV ukazuje obě teploty, právě jeden hlášený celkový stupeň 0/1/2/3 kW a čerpadlo. Tesla odděluje skutečný a nastavený proud.
+- Simulátor, modelová doporučení, balancování a modelová historie přesunuty do samostatné rozbalovací sekce. Podrobnosti jednotlivých vstupů zůstávají v diagnostice.
+- Oprava falešného zastarávání neměnných hodnot TUV/Tesly: pevná čtecí šablona HA získává aktuální last_reported přímo ze stavů místo uloženého JSON.
+- Pouze sledování; žádné fyzické příkazy, probouzení auta ani změny živého Node-RED.
+
 ## 0.4.0
 
 - Živá karta Tesly: SOC, kabel, stav nabíjení, výkon a skutečný proud, zvlášť nastavený proud.

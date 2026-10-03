@@ -110,13 +110,29 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		requests++
-		if req.Method != "GET" || req.URL.Path != "/states" {
+		if req.Method != "POST" || req.URL.Path != "/template" {
 			t.Error("unexpected control or wake request")
+		}
+		var payload struct {
+			Template  string              `json:"template"`
+			Variables map[string][]string `json:"variables"`
+		}
+		if json.NewDecoder(req.Body).Decode(&payload) != nil || payload.Template != stateTemplate || req.Header.Get("Content-Type") != "application/json" {
+			t.Error("expected fixed read-only template")
+		}
+		entities := payload.Variables["entity_ids"]
+		if len(entities) != 13 {
+			t.Error("request must select only TUV and Tesla entities")
+		}
+		for _, entity := range entities {
+			if entity == "device_tracker.private_location" || entity == "" {
+				t.Error("request includes unselected entity")
+			}
 		}
 		json.NewEncoder(w).Encode(states)
 	}))
 	defer server.Close()
-	r.baseURL = server.URL + "/states"
+	r.baseURL = server.URL + "/template"
 	r.poll(context.Background())
 	if requests != 1 || len(r.states) != 13 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" || r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" {
 		t.Fatal("TUV and Tesla must share one polling cycle")
@@ -131,6 +147,39 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 	r.poll(context.Background())
 	if r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" {
 		t.Fatal("fresh recovery failed")
+	}
+}
+
+func TestUnchangedCurrentUsesLiveReportTime(t *testing.T) {
+	now := time.Now().UTC()
+	r := teslaFixture(now)
+	s := r.states["tesla_current"]
+	s.State = "16"
+	s.LastUpdated = now.Add(-40 * time.Minute)
+	s.LastReported = now.Add(-5 * time.Second)
+	code := http.StatusOK
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.WriteHeader(code)
+		json.NewEncoder(w).Encode([]State{s})
+	}))
+	defer server.Close()
+	r.baseURL = server.URL + "/template"
+	r.poll(context.Background())
+	reading := r.TeslaSnapshot(time.Now()).Readings["current"]
+	if reading.Quality != "valid" || reading.Value == nil || *reading.Value != 16 || !reading.SourceAt.Equal(s.LastReported) {
+		t.Fatal("unchanged current with fresh report must stay valid", reading)
+	}
+	// A genuinely old report is still rejected, even with a fresh HTTP response.
+	s.LastReported = now.Add(-20 * time.Minute)
+	r.poll(context.Background())
+	if reading := r.TeslaSnapshot(time.Now()).Readings["current"]; reading.Quality != "stale" || reading.Value != nil {
+		t.Fatal("old report must not become fresh on receipt", reading)
+	}
+	// A rejected template endpoint clears the previous snapshot; no /states fallback.
+	code = http.StatusForbidden
+	r.poll(context.Background())
+	if r.status != "unauthorized" || len(r.states) != 0 {
+		t.Fatal("template access denial must clear state")
 	}
 }
 

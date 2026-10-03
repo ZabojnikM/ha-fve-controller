@@ -21,7 +21,7 @@ Větev `stable` obsahuje vydané verze. `main` je vývojová větev, nepřidáve
 1. V systémových informacích HA ověřte typ instalace a architekturu. Apps podporuje Home Assistant OS; samotný Home Assistant Container nemá Supervisor/obchod apps.
 2. Nastavení → Aplikace (ve starších verzích Doplňky) → Obchod → nabídka ⋮ → Repozitáře. Vložte výše uvedenou URL včetně `#stable`.
 3. Obnovte seznam, otevřete **FVE Controller**, zvolte Instalovat a po dokončení Spustit.
-4. Otevřete webové rozhraní. Musí být označeno SIMULACE a SLEDOVACÍ REŽIM. Tokeny ani přihlašovací údaje pro GHCR nejsou potřeba.
+4. Otevřete webové rozhraní. Musí být označeno SLEDOVACÍ REŽIM. Od verze 0.5.0 hlavní karty zobrazují živá data; oddělený simulátor je v rozbalovací sekci. Tokeny ani přihlašovací údaje pro GHCR nejsou potřeba.
 
 Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a následnou aktualizaci z 0.1.0 na 0.1.1 v Home Assistantu na Raspberry Pi 4. Přesný typ instalace a architektura OS nejsou doložené ze systémových informací. Podrobnosti jsou v [záznamu ověření](docs/VALIDATION.md).
 

@@ -2,9 +2,9 @@
 
 <img src="icon.png" alt="Ikona FVE Controller" width="96" height="96">
 
-Místní přehled baterie, TUV a Tesly pro Home Assistant. Go backend počítá doporučení, Vue/TypeScript zobrazuje modelové vstupy a SQLite uchovává historii a dokončení balancování.
+Místní přehled baterie, TUV a Tesly pro Home Assistant. Go backend počítá doporučení, Vue/TypeScript zobrazuje živá data v hlavních kartách a samostatný simulátor. SQLite uchovává pouze modelovou historii a dokončení simulovaného balancování.
 
-**Verze 0.4.0 čte Victron přes MQTT a TUV i Teslu přes Home Assistant API a obsahuje oddělený simulátor.** `observe_only=true`, `control_enabled=false`; neposílá příkazy fyzickým zařízením. MQTT zapněte a nastavte v konfiguraci doplňku. Čtení TUV je výchozím nastavením zapnuté a používá interní přístup Supervisoru. Současný Node-RED zůstává beze změny.
+**Verze 0.5.0 zobrazuje v hlavním přehledu Victron přes MQTT a TUV i Teslu přes Home Assistant API a obsahuje oddělený rozbalovací simulátor.** `observe_only=true`, `control_enabled=false`; neposílá příkazy fyzickým zařízením. MQTT zapněte a nastavte v konfiguraci doplňku. Čtení TUV je výchozím nastavením zapnuté a používá interní přístup Supervisoru. Současný Node-RED zůstává beze změny.
 
 Instalační repozitář: `https://github.com/ZabojnikM/ha-fve-controller#stable`.
 

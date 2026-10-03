@@ -1,4 +1,4 @@
-# Spuštění simulátoru
+# Provoz FVE Controller
 
 ## Odkaz pro instalaci v Home Assistantu
 
@@ -16,6 +16,14 @@ Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění. Jde o potvrz
 
 ## Provoz
 
+### Hlavní přehled (od verze 0.5.0)
+
+Hlavní karty zobrazují skutečné údaje připojených zdrojů: výrobu tří stringů a domácí baterii z MQTT, obě teploty a jmenovitý stupeň TUV, čerpadlo a nabíjení Tesly z HA. Součet výroby se zobrazuje jen při platných údajích všech tří stringů. Platná nula zůstává nulou; chybějící, neplatné, zastaralé nebo přerušené čtení zobrazí pomlčku a důvod. Výpadek jednoho zdroje neskrývá ostatní. Uživatel 2. 10. potvrdil kladný tok baterie při nabíjení a záporný při vybíjení.
+
+Sekce **Zdroje dat a diagnostika** obsahuje podrobné hodnoty, časové značky a limity stáří. **Simulátor a modelová doporučení** je oddělená rozbalovací sekce, která se načte až po otevření. Modelová historie a balancování jsou pouze zde; živá historie ani živé rozhodovací jádro zatím nejsou připojené. Hlavní přehled nikdy nepřebírá chybějící hodnotu ze simulace.
+
+Doplněk stále pracuje pouze ve sledovacím režimu. Hlášený stupeň TUV není měřený příkon ani potvrzení fyzického sepnutí. Nastavený proud Tesly není skutečný odběr. Vzhled stupňů TUV je indikátor stavu, nikoli ovládací prvek. Předání fyzického řízení TUV vyžaduje samostatný výslovně povolený krok a ověření ochran i jediného vlastníka výstupů.
+
 ### Tesla přes Home Assistant (od verze 0.4.0)
 
 Karta „Tesla · skutečná data“ čte existující entity HA. Výchozí mapování z původních podkladů je nastavitelné v `tesla_entities`: kabel `binary_sensor.nabijeci_kabel`, SOC `sensor.uroven_baterie`, stav nabíjení `sensor.nabijeni`, skutečný proud `sensor.proud_nabijecky`, výkon `sensor.vykon_nabijecky` a nastavený proud `number.nabijeci_proud`. Živou platnost těchto názvů ověřte po aktualizaci. Neexistující entita zneplatní pouze vlastní údaj. Neznámý údaj lze nechat prázdný; zobrazí se jako nenastavený.
@@ -30,7 +38,7 @@ Oficiální zdroje ověřené před implementací: [komunikace HA apps](https://
 
 ### TUV přes Home Assistant (od verze 0.3.0)
 
-Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér obsahuje pouze GET `/core/api/states`, bez volání služeb a změn stavů.
+Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér používá pouze POST `/core/api/template` s pevnou čtecí šablonou, bez volání služeb a změn stavů. HTTP POST zde pouze vyhodnocuje šablonu. Identifikátory vybraných entit se předávají jako proměnné, nikoli jako kód šablony; časy se čtou přímo z objektů stavů, aby se obešla serializační cache `/states`. TUV a Tesla sdílejí jeden snímek každých 5 s. Pokud endpoint přístup odmítne, předchozí snímek se zneplatní; není fallback na uložený JSON `/states`.
 
 Každých 5 s načte jeden snímek HA a ponechá pouze uvedené entity. Právě jeden zapnutý přepínač určuje jmenovitý výkon 0/1000/2000/3000 W. Žádný nebo více zapnutých přepínačů, chybějící entita a unknown/unavailable znamenají neurčený stav. TUV nemá měření příkonu: zvolený stupeň nepotvrzuje fyzické sepnutí spirál. Stav čerpadla je rovněž hlášení HA, nikoli měření průtoku.
 

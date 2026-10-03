@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import {ref,onMounted,onUnmounted} from 'vue'
-type Reading={value:number|null;unit:string;quality:string;source_at:string|null}
-type Telemetry={enabled:boolean;connected:boolean;status:string;received_at:string|null;temperature_fresh_seconds:number;readings:Record<string,Reading>;nominal_power:Reading}
-const data=ref<Telemetry>(),error=ref(false)
+import type {TuvTelemetry,Reading} from './live'
+const props=defineProps<{data?:TuvTelemetry;error:boolean}>()
 const statuses:Record<string,string>={disabled:'Čtení vypnuté',connecting:'Připojuje se',listening:'Čte z Home Assistantu',no_token:'Chybí přístup k HA · restartujte doplněk',offline:'HA nedostupný',unauthorized:'HA odmítl přístup',error:'Data HA nelze načíst',stale:'Spojení zastaralo'}
 const qualities:Record<string,string>={valid:'Stav z HA',missing:'Entita chybí',invalid:'Neplatný stav nebo jednotka',stale:'Zastaralá teplota',offline:'Spojení přerušeno',conflict:'Stupeň neurčený · musí být zapnutý právě jeden přepínač'}
-function value(r?:Reading){return !error.value&&r?.quality==='valid'&&r.value!==null?r.value.toLocaleString('cs-CZ',{maximumFractionDigits:1}):'—'}
-function quality(r?:Reading){return error.value?'Backend nedostupný':qualities[r?.quality??'missing']}
-function pump(){const r=data.value?.readings.pump;return !error.value&&r?.quality==='valid'?(r.value===1?'Zapnuté':'Vypnuté'):'—'}
-let pending=false
-async function refresh(){if(pending)return;pending=true;try{const response=await fetch('api/tuv',{signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error();data.value=await response.json();error.value=false}catch{error.value=true}finally{pending=false}}
-let timer:ReturnType<typeof setInterval>
-onMounted(()=>{refresh();timer=setInterval(refresh,2000)})
-onUnmounted(()=>clearInterval(timer))
+function value(r?:Reading){return !props.error&&r?.quality==='valid'&&r.value!==null?r.value.toLocaleString('cs-CZ',{maximumFractionDigits:1}):'—'}
+function quality(r?:Reading){return props.error?'Backend nedostupný':qualities[r?.quality??'missing']}
+function pump(){const r=props.data?.readings.pump;return !props.error&&r?.quality==='valid'?(r.value===1?'Zapnuté':'Vypnuté'):'—'}
 </script>
 <template>
   <section class="card victron-card" aria-labelledby="tuv-live-title">

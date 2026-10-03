@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import {ref,onMounted,onUnmounted} from 'vue'
-type Reading={value:number|null;text?:string;unit:string;quality:string;source_at:string|null}
-type Telemetry={enabled:boolean;connected:boolean;status:string;fresh_seconds:number;received_at:string|null;readings:Record<string,Reading>}
-const data=ref<Telemetry>(),error=ref(false)
+import type {TeslaTelemetry,Reading} from './live'
+const props=defineProps<{data?:TeslaTelemetry;error:boolean}>()
 const labels=[['soc','Stav nabití'],['connected','Nabíjecí kabel'],['charging','Stav nabíjení'],['power','Výkon nabíječky'],['current','Skutečný proud'],['current_limit','Nastavený proud']]
 const statuses:Record<string,string>={disabled:'Čtení vypnuté',connecting:'Připojuje se',listening:'Čte z Home Assistantu',no_token:'Chybí přístup k HA · restartujte doplněk',offline:'HA nedostupný',unauthorized:'HA odmítl přístup',error:'Data HA nelze načíst',stale:'Spojení zastaralo'}
 const qualities:Record<string,string>={valid:'Hlášení HA',missing:'Entita chybí',not_configured:'Entita není nastavená',invalid:'Neplatný stav nebo jednotka',stale:'Zastaralé hlášení',offline:'Spojení přerušeno'}
 const charging:Record<string,string>={charging:'Nabíjí se',complete:'Dokončeno',disconnected:'Odpojeno',stopped:'Zastaveno',starting:'Spouští se',no_power:'Bez napájení'}
-function value(key:string){const r=data.value?.readings[key];if(error.value||r?.quality!=='valid')return '—';if(key==='charging')return charging[r.text??'']??'—';if(key==='connected')return r.value===1?'Připojený':'Odpojený';return r.value===null?'—':r.value.toLocaleString('cs-CZ',{maximumFractionDigits:1})}
-let pending=false
-async function refresh(){if(pending)return;pending=true;try{const response=await fetch('api/tesla',{signal:AbortSignal.timeout(5000)});if(!response.ok)throw Error();data.value=await response.json();error.value=false}catch{error.value=true}finally{pending=false}}
-let timer:ReturnType<typeof setInterval>
-onMounted(()=>{refresh();timer=setInterval(refresh,2000)})
-onUnmounted(()=>clearInterval(timer))
+function value(key:string){const r=props.data?.readings[key];if(props.error||r?.quality!=='valid')return '—';if(key==='charging')return charging[r.text??'']??'—';if(key==='connected')return r.value===1?'Připojený':'Odpojený';return r.value===null?'—':r.value.toLocaleString('cs-CZ',{maximumFractionDigits:1})}
 </script>
 <template>
   <section class="card victron-card" aria-labelledby="tesla-live-title">

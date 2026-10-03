@@ -2,6 +2,7 @@
 package homeassistant
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -131,6 +133,38 @@ type Reader struct {
 	connected  bool
 }
 
+// Read current State properties directly: /states serves cached serialized states
+// whose last_reported may remain frozen while unchanged values are reported.
+// Entity IDs are variables, never executable template text. No services are called.
+const stateTemplate = `{% set ns = namespace(items=[]) %}{% for entity_id in entity_ids %}{% set s = states[entity_id] %}{% if s is not none %}{% set ns.items = ns.items + [{'entity_id': entity_id, 'state': s.state, 'attributes': {'unit_of_measurement': s.attributes.get('unit_of_measurement', '')}, 'last_updated': s.last_updated.isoformat(), 'last_reported': s.last_reported.isoformat() if s.last_reported is defined else s.last_updated.isoformat()}] %}{% endif %}{% endfor %}{{ ns.items | to_json }}`
+
+func (r *Reader) templateRequest() []byte {
+	selected := map[string]bool{}
+	for _, entity := range r.config.Entities {
+		if entity != "" {
+			selected[entity] = true
+		}
+	}
+	if r.config.TeslaEnabled {
+		for _, entity := range r.config.TeslaEntities {
+			if entity != "" {
+				selected[entity] = true
+			}
+		}
+	}
+	entities := make([]string, 0, len(selected))
+	for entity := range selected {
+		entities = append(entities, entity)
+	}
+	sort.Strings(entities)
+	// This payload contains only strings and slices, so JSON encoding cannot fail.
+	body, _ := json.Marshal(struct {
+		Template  string              `json:"template"`
+		Variables map[string][]string `json:"variables"`
+	}{stateTemplate, map[string][]string{"entity_ids": entities}})
+	return body
+}
+
 func New(c Config, token string) *Reader {
 	status := "connecting"
 	if !c.Enabled {
@@ -138,17 +172,18 @@ func New(c Config, token string) *Reader {
 	} else if token == "" {
 		status = "no_token"
 	}
-	return &Reader{config: c, token: token, baseURL: "http://supervisor/core/api/states", status: status,
+	return &Reader{config: c, token: token, baseURL: "http://supervisor/core/api/template", status: status,
 		client: &http.Client{Timeout: 8 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}, states: map[string]State{}}
 }
 
 func (r *Reader) poll(ctx context.Context) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.baseURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, r.baseURL, bytes.NewReader(r.templateRequest()))
 	if err != nil {
 		r.fail("error")
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+r.token)
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := r.client.Do(req)
 	if err != nil {
 		r.fail("offline")

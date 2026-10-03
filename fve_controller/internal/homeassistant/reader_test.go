@@ -126,14 +126,14 @@ func TestReadOnlyPollingAndPrivacy(t *testing.T) {
 	states = append(states, State{EntityID: "sensor.private_unselected", State: "private-state"})
 	code := 200
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Method != "GET" || req.URL.Path != "/states" || req.Header.Get("Authorization") != "Bearer test-secret" {
+		if req.Method != "POST" || req.URL.Path != "/template" || req.Header.Get("Authorization") != "Bearer test-secret" {
 			t.Error("unexpected request")
 		}
 		w.WriteHeader(code)
 		json.NewEncoder(w).Encode(states)
 	}))
 	defer server.Close()
-	r.baseURL = server.URL + "/states"
+	r.baseURL = server.URL + "/template"
 	r.poll(context.Background())
 	if len(r.states) != 7 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" {
 		t.Fatal("poll did not select expected states")
@@ -174,5 +174,29 @@ func TestConfigAndNoToken(t *testing.T) {
 	r.Start(context.Background())
 	if r.Snapshot(time.Now()).Status != "no_token" {
 		t.Fatal("missing token must be explicit")
+	}
+}
+
+func TestUnchangedTemperatureUsesLiveReportTime(t *testing.T) {
+	now := time.Now().UTC()
+	r := fixture(now, 0)
+	s := r.states["lower"]
+	s.State = "35.3"
+	s.LastUpdated = now.Add(-30 * time.Minute)
+	s.LastReported = now.Add(-5 * time.Second)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		json.NewEncoder(w).Encode([]State{s})
+	}))
+	defer server.Close()
+	r.baseURL = server.URL + "/template"
+	r.poll(context.Background())
+	reading := r.Snapshot(time.Now()).Readings["lower"]
+	if reading.Quality != "valid" || reading.Value == nil || *reading.Value != 35.3 || !reading.SourceAt.Equal(s.LastReported) {
+		t.Fatal("unchanged temperature with a fresh report must stay valid", reading)
+	}
+	s.LastReported = now.Add(-20 * time.Minute)
+	r.poll(context.Background())
+	if reading := r.Snapshot(time.Now()).Readings["lower"]; reading.Quality != "stale" || reading.Value != nil {
+		t.Fatal("fresh HTTP receipt must not validate an old temperature report", reading)
 	}
 }
