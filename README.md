@@ -2,7 +2,7 @@
 
 <img src="fve_controller/icon.png" alt="Ikona FVE Controller" width="96" height="96">
 
-Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená jako doplněk Home Assistantu. **Čtení Victronu přes MQTT, TUV a Tesly přes HA a oddělená simulace: observe_only=true, control_enabled=false.** Neodesílá žádné příkazy zařízením.
+Go backend, Vue/TypeScript přehled a SQLite. Existující aplikace zabalená jako doplněk Home Assistantu. **Čtení Victronu přes MQTT, TUV a Tesly přes HA a oddělená simulace: observe_only=true, control_enabled=false.** Zdrojová verze 0.7.0 přidává samostatné řízení čerpadla Y04, zatímco ohřev a ostatní zařízení zůstávají sledované. **Před aktivací výchozího `pump_control_enabled: true` vypněte všechny Node-RED větve zapisující na Y04.** [Postup převzetí čerpadla](docs/PUMP_CONTROL.md).
 
 ## Instalace
 
@@ -54,4 +54,4 @@ docker build -t fve-controller:local fve_controller
 python3 scripts/container_smoke.py fve-controller:local
 ```
 
-Soukromé exporty, místní zadání, tokeny, databáze, logy a závislosti nejsou publikované. Povolené soubory Docker build contextu jsou vyjmenované v `.dockerignore`. Aktuální verze fyzické řízení neimplementuje.
+Soukromé exporty, místní zadání, tokeny, databáze, logy a závislosti nejsou publikované. Povolené soubory Docker build contextu jsou vyjmenované v `.dockerignore`. Řízení čerpadla je samostatné; ohřev, ATS a Tesla zůstávají bez aktivního ovládání doplňkem.

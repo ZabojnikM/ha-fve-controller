@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fve-controller/internal/homeassistant"
+	"fve-controller/internal/pump"
+	"fve-controller/internal/tuv"
 	"fve-controller/internal/victron"
 	"net/http/httptest"
 	"path/filepath"
@@ -32,6 +34,33 @@ func TestTUVAPIIngressAndPrivacy(t *testing.T) {
 		var out homeassistant.Snapshot
 		if json.Unmarshal(w.Body.Bytes(), &out) != nil || out.Connected || out.NominalPower.Value != nil {
 			t.Fatal("startup must not confirm old state")
+		}
+	}
+}
+
+func TestPumpTelemetryCannotActivateControl(t *testing.T) {
+	a := &App{ha: homeassistant.New(homeassistant.DefaultConfig(), "test-secret"), pump: pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil)}
+	h := a.handler(t.TempDir(), true)
+	r := httptest.NewRequest("GET", "/api/tuv", nil)
+	r.RemoteAddr = "172.30.32.2:1000"
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, r)
+	var out struct {
+		Pump pump.Snapshot `json:"pump_control"`
+	}
+	if json.Unmarshal(w.Body.Bytes(), &out) != nil || !out.Pump.Enabled || out.Pump.Status != "waiting" || out.Pump.Confirmed != nil {
+		t.Fatal("pump ownership must not imply an initialized output")
+	}
+	if strings.Contains(w.Body.String(), "test-secret") || strings.Contains(w.Body.String(), "switch.kicony") {
+		t.Fatal("controller API must not expose configuration")
+	}
+	for _, path := range []string{"/api/pump", "/api/pump/enable", "/api/control", "/api/tuv"} {
+		r = httptest.NewRequest("POST", path, strings.NewReader(`{"enabled":true,"desired":true}`))
+		r.RemoteAddr = "172.30.32.2:1000"
+		w = httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		if w.Code < 400 {
+			t.Fatal("dashboard must not offer manual pump control", path)
 		}
 	}
 }
@@ -134,5 +163,49 @@ func TestAPIAndPersistence(t *testing.T) {
 	h.ServeHTTP(w, r)
 	if w.Code == 200 {
 		t.Fatal("control must not exist")
+	}
+}
+
+func TestFixedPumpControlAPI(t *testing.T) {
+	p := pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil)
+	a := &App{pump: p, tuv: tuv.New(p, "auto", func(string) error { return nil })}
+	h := a.handler(t.TempDir(), true)
+	call := func(method, path, body, token, peer string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, strings.NewReader(body))
+		r.RemoteAddr = peer
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("X-FVE-TUV", token)
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	peer := "172.30.32.2:1000"
+	w := call("GET", "/api/tuv", "", "", peer)
+	var out struct {
+		Token string `json:"control_token"`
+	}
+	if json.Unmarshal(w.Body.Bytes(), &out) != nil || out.Token == "" {
+		t.Fatal("missing request token")
+	}
+	for _, tc := range []struct {
+		path, body, token, peer string
+		code                    int
+	}{
+		{"/api/tuv/mode", `{"mode":"manual"}`, "", peer, 403},
+		{"/api/tuv/mode", `{"mode":"manual"}`, out.Token, "1.2.3.4:1", 403},
+		{"/api/tuv/pump", `{"on":true}`, out.Token, peer, 409},
+		{"/api/tuv/mode", `{"mode":"manual","entity_id":"switch.other"}`, out.Token, peer, 400},
+		{"/api/tuv/mode", `{"mode":"manual"} {}`, out.Token, peer, 400},
+		{"/api/tuv/mode", `{"mode":"manual"}`, out.Token, peer, 202},
+		{"/api/tuv/pump", `{}`, out.Token, peer, 400},
+		{"/api/tuv/pump", `{"on":true}`, out.Token, peer, 409},
+		{"/api/tuv/pump", `{"on":false}`, out.Token, peer, 202},
+		{"/api/tuv/power", `{"watts":3000}`, out.Token, peer, 404},
+		{"/api/services", `{"service":"turn_on"}`, out.Token, peer, 404},
+	} {
+		w = call("POST", tc.path, tc.body, tc.token, tc.peer)
+		if w.Code != tc.code {
+			t.Fatalf("%s %s: got %d want %d (%s)", tc.path, tc.body, w.Code, tc.code, w.Body.String())
+		}
 	}
 }

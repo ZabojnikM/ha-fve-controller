@@ -3,7 +3,11 @@ import {computed} from 'vue'
 import EnergyIcon from './EnergyIcon.vue'
 import {numeric,solarTotal,format} from './live'
 import {tuvCharge} from './tuvCharge'
+import {tuvStatus} from './tuvStatus'
+import {pumpStatus} from './pumpStatus'
+import TuvControl from './TuvControl.vue'
 import type {Source,VictronTelemetry,TuvTelemetry,TeslaTelemetry} from './live'
+defineEmits<{changed:[]}>()
 const props=defineProps<{victron:Source<VictronTelemetry>;tuv:Source<TuvTelemetry>;tesla:Source<TeslaTelemetry>}>()
 const strings=[['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot']]
 const gridPhases=[['grid_l1','L1'],['grid_l2','L2'],['grid_l3','L3']]
@@ -15,7 +19,8 @@ function t(key:string){return numeric(props.tuv.data?.readings[key],tReady.value
 function car(key:string){return numeric(props.tesla.data?.readings[key],carReady.value)}
 const total=computed(()=>solarTotal(props.victron.data?.readings,vReady.value))
 const nominal=computed(()=>numeric(props.tuv.data?.nominal_power,tReady.value))
-const waterCharge=computed(()=>tuvCharge(t('upper'),t('lower')))
+const waterStatus=computed(()=>tuvStatus(props.tuv.data,tReady.value))
+const waterCharge=computed(()=>waterStatus.value.sensorFault?null:tuvCharge(t('upper'),t('lower')))
 const direction=computed(()=>{
   const watts=v('battery')
   return watts===null?'Tok není dostupný':watts>0?'Nabíjí se':watts<0?'Vybíjí se':'Bez toku'
@@ -32,6 +37,7 @@ const charging=computed(()=>{
   return labels[r.text??'']??'Stav nabíjení není dostupný'
 })
 const cable=computed(()=>car('connected')===null?'—':car('connected')===1?'Připojený':'Odpojený')
+const pumpAutomation=computed(()=>pumpStatus(props.tuv.data?.pump_control,!props.tuv.error&&!!props.tuv.data))
 const pump=computed(()=>t('pump')===null?'—':t('pump')===1?'Zapnuté':'Vypnuté')
 </script>
 <template>
@@ -69,7 +75,7 @@ const pump=computed(()=>t('pump')===null?'—':t('pump')===1?'Zapnuté':'Vypnut�
           <div class="water-charge"><p class="eyebrow">Nabití TUV</p><div class="metric" data-testid="tuv-charge">{{format(waterCharge)}} <small>%</small></div></div>
           <div><p class="eyebrow">Spodní teplota</p><div class="metric" data-testid="tuv-lower">{{format(t('lower'))}} <small>°C</small></div></div>
         </div>
-        <div class="device-detail"><div class="device-title"><strong>Stupeň ohřevu</strong></div><div class="heating-status" :class="nominal===null?'unknown':nominal===0?'off':'on'"><i aria-hidden="true"></i><strong>{{nominal===null?'Stupeň není známý':nominal===0?'Ohřev vypnutý':`Zvolený ohřev ${format(nominal/1000,0)} kW`}}</strong></div><div class="stages heating-stages" aria-label="Hlášený celkový stupeň ohřevu"><span v-for="stage in [0,1,2,3]" :key="stage" :class="{active:nominal!==null&&nominal===stage*1000,off:stage===0,unknown:nominal===null}"><strong>{{stage}} kW</strong><small>{{nominal===null?'Neurčeno':nominal===stage*1000?(stage===0?'✓ Vypnuto':'✓ Aktivní'):'Neaktivní'}}</small></span></div><dl><dt>Čerpadlo</dt><dd><span class="state-tag" :class="t('pump')===null?'unknown':t('pump')===1?'on':'off'">{{pump}}</span></dd></dl></div>
+        <div class="device-detail"><div class="tuv-system-status" :class="waterStatus.tone" role="status" data-testid="tuv-system"><strong>{{waterStatus.label}}</strong><small v-if="waterStatus.details">{{waterStatus.details}}</small></div><div class="device-title"><strong>Stupeň ohřevu</strong></div><div class="heating-status" :class="nominal===null?'unknown':nominal===0?'off':'on'"><i aria-hidden="true"></i><strong>{{nominal===null?'Stupeň není známý':nominal===0?'Ohřev vypnutý':`Zvolený ohřev ${format(nominal/1000,0)} kW`}}</strong></div><div class="stages heating-stages" aria-label="Hlášený celkový stupeň ohřevu"><span v-for="stage in [0,1,2,3]" :key="stage" :class="{active:nominal!==null&&nominal===stage*1000,off:stage===0,unknown:nominal===null}"><strong>{{stage}} kW</strong><small>{{nominal===null?'Neurčeno':nominal===stage*1000?(stage===0?'✓ Vypnuto':'✓ Zvolený'):'Neaktivní'}}</small></span></div><dl><dt>Čerpadlo <span v-if="tuv.data?.pump_control?.enabled">· {{tuv.data.pump_control.mode==='manual'?'Ručně':'Auto'}}</span></dt><dd><span class="state-tag" :class="t('pump')===null?'unknown':t('pump')===1?'on':'off'">{{pump}}</span></dd></dl><p v-if="tuv.data?.pump_control?.enabled" class="pump-automation" :class="{problem:pumpAutomation.problem}" role="status"><strong>{{pumpAutomation.label}}</strong><span>{{pumpAutomation.reason}}</span></p><TuvControl :source="tuv" @changed="$emit('changed')"/></div>
       </section>
       <section class="card load-card car" aria-labelledby="car-live-title">
         <div class="cardhead"><h2 id="car-live-title"><EnergyIcon name="car"/>Tesla</h2></div>

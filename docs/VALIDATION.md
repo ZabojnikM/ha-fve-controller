@@ -1,5 +1,13 @@
 # Ověření 1. 10. 2026
 
+## Kontrola před publikací zdrojů 0.7.0 — 4. 10. 2026
+
+- Prošly `go test ./...` a `go vet ./...` všech šesti balíčků, včetně hystereze čerpadla, servisního času, restartu, změn režimu, chyb příkazů a opožděného potvrzení.
+- Prošlo všech 11 frontendových testů, `vue-tsc --noEmit` a produkční Vite build. Prošel také integrační test vydávacího skriptu a actionlint.
+- Nový produkční frontend ověřen v Chromiu na desktopu 1280 px a mobilu 390/340 px: bez horizontálního přetékání a chyb JavaScriptu. Vizuálně prohlédnut automatický i ruční režim. API fixtures ověřily změnu režimu, ruční Zap/Vyp, blokované Zap při neplatných datech a nepředaný výstup. Všechny povely obsluhovaly pouze anonymizované místní fixtures.
+- Soukromý vstupní návod Kicony s interní adresou zůstává ignorovaný. Verze sjednocena na 0.7.0; publikace zdrojů do main neprovádí aktualizaci stable ani aktivaci v HA. Na živé instalaci nebyly odeslány příkazy ani upraven Node-RED.
+- Aktuální oficiální dokumentace konfigurace HA apps, Ingress, Supervisor endpoints a MQTT switch znovu ověřena. Skutečná odezva Y04 a převzetí výlučného správce zůstávají součástí samostatného nasazení podle [postupu čerpadla](PUMP_CONTROL.md).
+
 ## Čtecí adaptér Victron MQTT — místní úprava 2. 10. 2026
 
 - Go testy ověřují rozlišení nuly, chybějící hodnoty, null/prázdného/poškozeného payloadu, zastarání, retained zprávy, výpadku a resetu po reconnectu. Znaménko baterie se zachovává; potvrzení znaménka na instalaci je stále otevřené.
@@ -133,3 +141,23 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 - Go test/vet prošly, včetně regrese migrace, nuly, přesnosti, záporného výkonu, invalid jedné fáze bez dopadu na další, stale, retained a výpadku spojení. Prošel i test předchozího nevydaného modelu TUV, vue-tsc a Vite build.
 - Browser kontrola s fixtures: stejné rozměry tří horních karet (desktop přibližně 341×319 px; mobil 390 px 343×312 px; mobil 340 px 293×320 px), všechny 4 bargrafy 18 px, ikona měniče přítomná, fáze bez bargrafů. Zastará/chybějící/offline fáze se zobrazuje pomlčkou, žádné přetečení nebo chyby konzole. Živá data na instalaci nejsou tímto testem potvrzená.
 - Úpravy zůstávají společně s odhadem nabití TUV pouze lokálně podle výslovného zákazu publikace. Verze stále 0.6.1, bez commitu/pushe/release.
+
+## 4. 10. 2026 – lokální čtení Kicony TUV (nevydáno)
+
+- Nový select výkonu místo odstraněných spínačů, přesné volby 0/1/2/3 kW bez fallbacku. Stav systému, X16, Y15 a uptime sdílejí stávající čtecí template cyklus s TUV/Teslou. Horní teplota z jiného zařízení zůstala sensor.tepla_voda podle výslovného pokynu uživatele; TUV2 se nečte.
+- Go test ./... a go vet ./... prošly (lokální Go runtime, nová izolovaná build cache). Regrese ověřily validní nulu, neznámé/chybějící selecty, všechny dokumentované blokace, limit stáří periodických hlášení a budoucí čas, souběžné X16/Y15, výpadek transportu a migraci starých options se zachováním vlastních čidel/čerpadla.
+- Osm frontendových testů prošlo, včetně modelu zásoby tepla a nových stavů. Vue-tsc --noEmit a produkční Vite build prošly v lokální kopii zdrojů se stávajícími závislostmi (configLoader runner kvůli ACL staré .vite-temp). Žádné instalace ani změny závislostí.
+- Playwright s anonymizovanými fixtures a vizuální kontrola PNG: desktop 1280 px, mobil 390/340 px, všechny blokace, současné vstupy i zpoždění textového stavu, diagnostika, offline/stale a chybějící select. Bez přetečení, chyb konzole nebo akčních požadavků; frontend pouze GET tuv/tesla/victron. Obnova/porucha čidel skryje odhad nabití TUV, ostatní blokace ponechávají platné teplotní údaje. Screenshoty lokálně artifacts/kicony-*.png.
+- Živý příjem nových entit ani aktuální firmware Y15 nejsou lokálními fixtures potvrzené. Žádné příkazy zařízení, heartbeat, odblokování, reset, změny Node-RED nebo nasazení. Verze ponechána 0.6.2, bez commitu/pushe/release.
+- Před implementací ověřena aktuální oficiální dokumentace: [HA apps](https://developers.home-assistant.io/docs/apps/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/#ingress), [komunikace apps](https://developers.home-assistant.io/docs/apps/communication/), [Supervisor API](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [MQTT](https://www.home-assistant.io/integrations/mqtt/), [Select](https://www.home-assistant.io/integrations/select/). Architektura ani oprávnění se nemění.
+
+
+## 4. 10. 2026 – dokončené lokální řízení Y04
+
+- Backend: samostatná sekundová smyčka čerpadla, hystereze >58/<57 °C se spodním >=57 pro vypnutí, servis v 18:30 Europe/Prague 30 s od HA hlášení Zap, OR s procesním požadavkem. Datum servisu a centrální režim jsou v SQLite; ruční povel ani potvrzení se neobnovují.
+- API/UI: dva pevné POST endpointy mode/pump chráněné Ingressem a X-FVE-TUV, striktní JSON bez libovolné entity/služby. Dashboard nabízí Automatika TUV / Ruční ovládání a pouze ruční Zap/Vyp čerpadla; odlišuje požadavek, odeslání a HA stav. Aktivní ovládání ohřevu včetně transportu, konfiguračního klíče a endpointu odstraněno z rozpracovaného návrhu. Ohřev dále řídí Node-RED.
+- V aktuálním projektu úspěšné Go test ./... a go vet ./...; frontend pnpm test (11 testů) a pnpm build (vue-tsc + Vite). Přidány regrese ručního režimu, neplatných/stale vstupů, restartu s ručním OFF, přechodu režimů během servisu, selhání persistence režimu, výchozího povolení a zachování explicitního false. API testy ověřují token, Ingress, neznámé položky, více JSON dokumentů, chybějící on, odmítnutí nebezpečného ON a neexistenci /api/tuv/power i obecného service API. Dosavadní testy pokrývají hranice hystereze, DST, sloučení požadavků, timeout/opakování a opožděné potvrzení.
+- Vizuální kontrola skutečného finálního buildu s anonymními fixtures v headless Chrome/Playwright: desktop 1280, mobil 390 a úzký 340 px bez vodorovného přesahu a chyb konzole. Ověřeny oba režimy, ruční Zap i Vyp, pevné endpointy s tokenem, čekání na potvrzení bez vymyšleného vypnutí, chybové stavy, firmware blokace, vypnuté předání a diagnostika. Snímky uloženy v outputs tohoto chatu. Bez živého HA spojení.
+- Výchozí pump_control_enabled=true je připravené pro funkční předání. Před aktivací musí uživatel vypnout všechny Node-RED větve zapisující na Y04; výslovně uložené false se nemění. Bez options.json lokální běh zůstává bez řízení.
+- Omezení: lokálně nebyly ověřeny fyzické relé/průtok, skutečný Supervisor přístup, stavová zpětná vazba HA, typ instalace ani místní watchdog Y04. HA/optimistický stav není důkaz průtoku. Testy byly pouze lokální; nic nepublikováno ani nenasazeno, verze zůstává 0.6.2. Překrývající se návrhy druhého chatu byly před sjednocením zálohovány do work/before-integration aktuálního chatu.
+- Oficiální dokumentace znovu ověřená: [komunikace apps](https://developers.home-assistant.io/docs/apps/communication/), [konfigurace](https://developers.home-assistant.io/docs/apps/configuration/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/), [Supervisor](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [MQTT switch](https://www.home-assistant.io/integrations/switch.mqtt/).

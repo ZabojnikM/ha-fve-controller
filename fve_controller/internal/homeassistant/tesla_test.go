@@ -121,7 +121,7 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 			t.Error("expected fixed read-only template")
 		}
 		entities := payload.Variables["entity_ids"]
-		if len(entities) != 13 {
+		if len(entities) != 14 {
 			t.Error("request must select only TUV and Tesla entities")
 		}
 		for _, entity := range entities {
@@ -134,7 +134,7 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 	defer server.Close()
 	r.baseURL = server.URL + "/template"
 	r.poll(context.Background())
-	if requests != 1 || len(r.states) != 13 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" || r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" {
+	if requests != 1 || len(r.states) != 14 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" || r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" {
 		t.Fatal("TUV and Tesla must share one polling cycle")
 	}
 	b, _ := json.Marshal(r.TeslaSnapshot(time.Now()))

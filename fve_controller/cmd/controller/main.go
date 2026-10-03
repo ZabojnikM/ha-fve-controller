@@ -2,18 +2,26 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fve-controller/internal/core"
 	"fve-controller/internal/homeassistant"
+	"fve-controller/internal/pump"
+	"fve-controller/internal/tuv"
 	"fve-controller/internal/victron"
+	"io"
 	"log"
 	_ "modernc.org/sqlite"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -25,6 +33,8 @@ type App struct {
 	state    map[string]any
 	victron  *victron.Reader
 	ha       *homeassistant.Reader
+	pump     *pump.Controller
+	tuv      *tuv.Controller
 }
 
 func env(k, v string) string {
@@ -105,7 +115,67 @@ func (a *App) tick(now time.Time) error {
 	return err
 }
 func (a *App) handler(web string, ingress bool) http.Handler {
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		panic("Nelze připravit ochranu požadavků TUV")
+	}
+	controlToken := hex.EncodeToString(nonce[:])
+	parseControl := func(w http.ResponseWriter, r *http.Request, body any) bool {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-FVE-TUV")), []byte(controlToken)) != 1 {
+			http.Error(w, "Neplatný požadavek TUV", 403)
+			return false
+		}
+		if r.Header.Get("Content-Type") != "application/json" {
+			http.Error(w, "Požadavek musí být JSON", 415)
+			return false
+		}
+		dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+		dec.DisallowUnknownFields()
+		if dec.Decode(body) != nil {
+			http.Error(w, "Neplatný požadavek", 400)
+			return false
+		}
+		var extra any
+		if dec.Decode(&extra) != io.EOF {
+			http.Error(w, "Neplatný požadavek", 400)
+			return false
+		}
+		if a.tuv == nil {
+			http.Error(w, "Řízení TUV ještě není předané doplňku", 409)
+			return false
+		}
+		return true
+	}
+	accepted := func(w http.ResponseWriter, err error) {
+		if err != nil {
+			http.Error(w, err.Error(), 409)
+			return
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}
 	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/tuv/mode", func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			Mode string `json:"mode"`
+		}
+		if !parseControl(w, r, &b) {
+			return
+		}
+		accepted(w, a.tuv.SetMode(b.Mode))
+	})
+	mux.HandleFunc("POST /api/tuv/pump", func(w http.ResponseWriter, r *http.Request) {
+		var b struct {
+			On *bool `json:"on"`
+		}
+		if !parseControl(w, r, &b) {
+			return
+		}
+		if b.On == nil {
+			http.Error(w, "Chybí požadovaný stav", 400)
+			return
+		}
+		accepted(w, a.tuv.ManualPump(*b.On, time.Now()))
+	})
 	mux.HandleFunc("GET /api/tesla", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		reader := a.ha
@@ -120,7 +190,20 @@ func (a *App) handler(web string, ingress bool) http.Handler {
 		if reader == nil {
 			reader = homeassistant.New(homeassistant.Config{}, "")
 		}
-		json.NewEncoder(w).Encode(reader.Snapshot(time.Now()))
+		control := pump.New(pump.Config{FreshSeconds: 120}, nil, "", nil)
+		if a.pump != nil {
+			control = a.pump
+		}
+		tuvControl := tuv.New(pump.New(pump.Config{FreshSeconds: 120}, nil, "", nil), "auto", nil)
+		if a.tuv != nil {
+			tuvControl = a.tuv
+		}
+		json.NewEncoder(w).Encode(struct {
+			homeassistant.Snapshot
+			PumpControl  pump.Snapshot `json:"pump_control"`
+			TuvControl   tuv.Snapshot  `json:"tuv_control"`
+			ControlToken string        `json:"control_token"`
+		}{reader.Snapshot(time.Now()), control.Snapshot(), tuvControl.Snapshot(), controlToken})
 	})
 	mux.HandleFunc("GET /api/victron", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -229,9 +312,50 @@ func main() {
 		log.Fatal(err)
 	}
 	a.ha = homeassistant.New(haConfig, os.Getenv("SUPERVISOR_TOKEN"))
-	haContext, cancelHA := context.WithCancel(context.Background())
+	haContext, cancelHA := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancelHA()
 	a.ha.Start(haContext)
+	pumpConfig, err := pump.Load(env("OPTIONS_PATH", filepath.Join(dir, "options.json")))
+	if err != nil {
+		log.Fatal(err)
+	}
+	if pumpConfig.Enabled && !haConfig.Enabled {
+		log.Fatal("Řízení čerpadla vyžaduje čtení HA")
+	}
+	var lastServiceDay string
+	err = db.QueryRow("SELECT value FROM settings WHERE key='pump_last_service_day'").Scan(&lastServiceDay)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal("Nelze načíst servisní den čerpadla")
+	}
+	if lastServiceDay != "" {
+		if _, err = time.Parse("2006-01-02", lastServiceDay); err != nil {
+			log.Fatal("Neplatný servisní den čerpadla")
+		}
+	}
+	a.pump = pump.New(pumpConfig, homeassistant.NewPumpCommands(haConfig.Entities["pump"], os.Getenv("SUPERVISOR_TOKEN")), lastServiceDay, func(day string) error {
+		_, err := db.Exec("INSERT INTO settings(key,value) VALUES('pump_last_service_day',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", day)
+		return err
+	})
+	var mode string
+	err = db.QueryRow("SELECT value FROM settings WHERE key='tuv_mode'").Scan(&mode)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatal("Nelze načíst režim TUV")
+	}
+	if mode != "" && mode != "auto" && mode != "manual" {
+		log.Fatal("Neplatný uložený režim TUV")
+	}
+	a.tuv = tuv.New(a.pump, mode, func(mode string) error {
+		_, err := db.Exec("INSERT INTO settings(key,value) VALUES('tuv_mode',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", mode)
+		return err
+	})
+	defer func() {
+		cancelHA()
+		ctx, cancel := context.WithTimeout(context.Background(), 7*time.Second)
+		defer cancel()
+		if a.pump.Stop(ctx) != nil {
+			log.Print("Vypnutí čerpadla při ukončení nebylo doručeno")
+		}
+	}()
 	var last string
 	err = db.QueryRow("SELECT value FROM settings WHERE key='simulation_last_balance'").Scan(&last)
 	if err == nil {
@@ -245,6 +369,7 @@ func main() {
 	if err = a.tick(time.Now()); err != nil {
 		log.Fatal(err)
 	}
+	a.pump.Run(haContext, a.ha.Snapshot)
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
@@ -253,11 +378,21 @@ func main() {
 			err := a.tick(now)
 			a.mu.Unlock()
 			if err != nil {
-				log.Fatal("Simulation storage failed")
+				log.Print("Simulation storage failed")
+				cancelHA()
+				return
 			}
 		}
 	}()
-	log.Print("FVE simulator: observe_only=true control_enabled=false")
+	log.Printf("FVE simulator: observe_only=true control_enabled=false; pump_control_enabled=%t", pumpConfig.Enabled)
 	server := &http.Server{Addr: env("LISTEN_ADDR", "127.0.0.1:8099"), Handler: a.handler(env("WEB_DIR", "web/dist"), os.Getenv("INGRESS_ONLY") == "true"), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
-	log.Fatal(server.ListenAndServe())
+	go func() {
+		<-haContext.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(ctx)
+	}()
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Print("HTTP server skončil chybou")
+	}
 }

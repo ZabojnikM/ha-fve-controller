@@ -13,3 +13,16 @@
 .load-metrics.water-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.water-metrics .water-charge{text-align:center}.water-charge .metric{color:#23825d}.water-metrics .eyebrow{white-space:nowrap;font-size:9px;letter-spacing:.4px}.water-metrics .metric{font-size:32px;white-space:nowrap}.water-metrics .metric small{font-size:16px}@media(max-width:700px){.live-overview .water-metrics .metric{font-size:28px}.water-metrics .metric small{font-size:14px}.load-metrics.water-metrics{gap:8px}}@media(max-width:370px){.live-overview .water-metrics .metric{font-size:25px}.water-metrics .metric small{font-size:12px}.water-metrics .eyebrow{font-size:8px;letter-spacing:.2px}.load-metrics.water-metrics{gap:6px}}
 
 .grid-title{font-size:12px;color:var(--muted);margin:18px 0 0}.power-tile .grid-readings .solar-readings{margin-top:8px}.inverter-tile .energy-icon{color:var(--blue)}
+
+.tuv-system-status{display:flex;flex-direction:column;gap:6px;border:1px solid #d4d7df;background:#f0f1f5;color:#535b6c;border-radius:10px;padding:12px 14px;margin-bottom:18px;overflow-wrap:anywhere}.tuv-system-status strong{font-size:14px;line-height:1.5}.tuv-system-status small{font-size:11px;line-height:1.5}.tuv-system-status.ready{background:#e5f5eb;border-color:#8ccba5;color:#146c3e}.tuv-system-status.blocked{background:#fff0e7;border-color:#db9d7b;color:#8d3b1e}.tuv-system-status.unknown{background:#fff5e5;border-color:#dfbc81;color:#805110}.tuv-system-reading strong{font-size:16px;line-height:1.5;overflow-wrap:anywhere}
+
+.pump-automation{display:flex;flex-direction:column;gap:5px;font-size:12px!important;line-height:1.5;padding:12px;background:#e5f5eb;color:#146c3e;border-radius:10px;margin:16px 0 0!important}.pump-automation.problem{background:#fff0e7;color:#8d3b1e}.pump-automation span{font-size:11px}.pump-diagnostics{margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}.pump-diagnostics h3{font-size:14px;margin:0}.pump-diagnostics p{font-size:12px;line-height:1.6}.pump-diagnostics dl{max-width:440px}.pump-diagnostics dd{max-width:220px}
+
+
+.tuv-control { margin-top:18px; padding-top:16px; border-top:1px solid var(--border,#36434d); }
+.control-buttons { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+.control-buttons button { flex:1 1 130px; min-height:44px; padding:10px; border:1px solid #52646f; border-radius:8px; background:#20303a; color:#f3f7fa; cursor:pointer; }
+.control-buttons button[aria-pressed="true"] { background:#166451; border-color:#65d8af; }
+.control-buttons button:disabled { opacity:.5; cursor:default; }
+.pump-feedback { font-size:13px; line-height:1.7; }
+.tuv-control .problem { color:#ffb6ae; }

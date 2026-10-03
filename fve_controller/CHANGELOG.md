@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0
+
+- Funkční samostatné řízení čerpadla: hystereze 58/57 °C, servisní protočení 18:30 Europe/Prague na 30 s sloučené s procesním požadavkem.
+- Centrální Automatika TUV / Ruční ovládání, Zap/Vyp čerpadla, ukládání režimu a oddělené potvrzení HA. Ruční Zap se po restartu neobnovuje.
+- Výchozí povolení čerpadla true; před aktivací vypnout všechny Node-RED zápisy na Y04. Ohřev nadále řídí Node-RED, žádné povely 0–3 kW.
+- Zdrojová verze připravená pro GitHub; aktivace na instalaci vyžaduje samostatné předání Y04. Publikace zdrojů sama řízení v HA nezapíná.
+
+- TUV čte nový select stupně ohřevu a v hlavní kartě zobrazuje povolení či důvod blokace firmware.
+- Diagnostika doplněna o X16, napájení čidel Y15 a dobu běhu Kicony.
+- Horní teplota zůstává z externího zařízení; TUV2 se nečte. Obnova a porucha čidel skryjí odhad zásoby tepla.
+- Starší nastavení získá nové entity při zachování vlastního mapování teplot a čerpadla. Ohřev se pouze čte, bez heartbeat nebo ovládání ohřevu.
+
+
 ## 0.6.2
 
 - Odhad nabití TUV mezi horní a spodní teplotou podle dohodnutého vrstveného modelu; neplatná nebo zastaralá čidla zobrazí pomlčku. Podrobnosti výpočtu jsou v Diagnostice.

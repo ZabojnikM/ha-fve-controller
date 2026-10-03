@@ -59,7 +59,10 @@ with tempfile.TemporaryDirectory() as directory:
             assert tuv["enabled"] is True and tuv["connected"] is False
             assert tuv["status"] == "no_token", "Standalone container must not invent HA access"
             assert tuv["nominal_power"]["value"] is None
-            assert len(tuv["readings"]) == 7
+            assert len(tuv["readings"]) == 8
+            assert tuv["pump_control"]["enabled"] is False
+            assert tuv["pump_control"]["owner"] == "external"
+            assert tuv["pump_control"]["sent"] is None
             tesla = get("/api/tesla")
             assert tesla["enabled"] is True and tesla["connected"] is False
             assert tesla["status"] == "no_token"

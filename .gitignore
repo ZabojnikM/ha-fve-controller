@@ -1,4 +1,5 @@
 reference-private/
+kicony-llm-navod.md
 .env
 .env.*
 !.env.example

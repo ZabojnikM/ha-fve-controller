@@ -33,7 +33,8 @@ func DefaultConfig() Config {
 		"current": "sensor.proud_nabijecky", "power": "sensor.vykon_nabijecky", "current_limit": "number.nabijeci_proud",
 	}, Entities: map[string]string{
 		"upper": "sensor.tepla_voda", "lower": "sensor.tuv_1", "pump": "switch.kicony_kc868_a16_y04",
-		"stage_0": "switch.tuv_0kw", "stage_1": "switch.tuv_1kw", "stage_2": "switch.tuv_2kw", "stage_3": "switch.tuv_3kw",
+		"power": "select.automatizace_kicony_vykon_tuv", "system": "sensor.stav_systemu_tuv",
+		"overload": "binary_sensor.sonoff_4ch_button_1", "sensor_reset": "switch.kicony_kc868_a16_y15", "uptime": "sensor.esp_tuv_cas_behu",
 	}}
 }
 
@@ -49,10 +50,15 @@ func Load(path string) (Config, error) {
 	if json.Unmarshal(b, &c) != nil {
 		return c, errors.New("neplatný formát nastavení HA")
 	}
+	// Older options gain the new defaults, retaining custom temperature/pump IDs.
+	// Removed optimistic switches must never be used as a power fallback.
+	for _, key := range []string{"stage_0", "stage_1", "stage_2", "stage_3"} {
+		delete(c.Entities, key)
+	}
 	return c, c.Validate()
 }
 
-var entityPattern = regexp.MustCompile(`^(sensor|switch|binary_sensor|number)\.[a-z0-9_]+$`)
+var entityPattern = regexp.MustCompile(`^(sensor|switch|binary_sensor|number|select)\.[a-z0-9_]+$`)
 
 func (c Config) Validate() error {
 	if !c.Enabled {
@@ -69,7 +75,7 @@ func (c Config) Validate() error {
 		}
 		seen[entity] = true
 	}
-	if len(c.Entities) != 7 {
+	if len(c.Entities) != len(DefaultConfig().Entities) {
 		return errors.New("neznámá entita TUV")
 	}
 	if c.TeslaEnabled {
@@ -293,6 +299,33 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 						reading.Quality = "stale"
 					}
 				}
+			} else if key == "power" {
+				if v, ok := map[string]float64{"Vypnuto": 0, "1 kW": 1000, "2 kW": 2000, "3 kW": 3000}[s.State]; ok {
+					reading.Value = &v
+					reading.Unit = "W"
+					reading.Quality = "valid"
+				}
+			} else if key == "system" {
+				// Only documented states are exposed, never arbitrary raw HA text.
+				switch s.State {
+				case "Obnova čidel TUV", "Zablokováno (Teplota)", "Zablokováno (Porucha čidel po 3 resetech)", "Zablokováno (Porucha čidla)", "Zablokováno (Watchdog)", "Zablokováno (Přetížení)", "Aktivní":
+					text := s.State
+					reading.Text = &text
+					reading.Quality = "valid"
+				}
+				if reading.Quality == "valid" && (at.IsZero() || at.After(now) || now.Sub(at) > 60*time.Second) {
+					reading.Quality = "stale"
+				}
+			} else if key == "uptime" {
+				v, err := strconv.ParseFloat(s.State, 64)
+				if err == nil && !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && s.Attributes.Unit == "s" {
+					reading.Value = &v
+					reading.Unit = "s"
+					reading.Quality = "valid"
+					if at.IsZero() || at.After(now) || now.Sub(at) > 180*time.Second {
+						reading.Quality = "stale"
+					}
+				}
 			} else if s.State == "on" || s.State == "off" {
 				v := 0.0
 				if s.State == "on" {
@@ -307,29 +340,14 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 		}
 		if reading.Quality != "valid" {
 			reading.Value = nil
+			reading.Text = nil
 		}
 		out.Readings[key] = reading
 	}
-	count, stage, valid := 0, 0, true
-	for i, key := range []string{"stage_0", "stage_1", "stage_2", "stage_3"} {
-		s := out.Readings[key]
-		if s.Quality != "valid" {
-			valid = false
-		} else if *s.Value == 1 {
-			count++
-			stage = i
-		}
-	}
+	out.NominalPower = out.Readings["power"]
+	out.NominalPower.Unit = "W"
 	if !transportFresh {
 		out.NominalPower.Quality = "offline"
-	} else if !valid {
-		out.NominalPower.Quality = "invalid"
-	} else if count != 1 {
-		out.NominalPower.Quality = "conflict"
-	} else {
-		v := float64(stage * 1000)
-		out.NominalPower.Value = &v
-		out.NominalPower.Quality = "valid"
 	}
 	return out
 }

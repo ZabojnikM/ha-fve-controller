@@ -1,9 +1,9 @@
 name: FVE Controller
-version: "0.6.2"
+version: "0.7.0"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller
-description: Čtení Victronu, TUV a Tesly, simulovaný koordinátor bez ovládání zařízení
+description: Čtení FVE a Tesly, řízení čerpadla TUV; ohřev zůstává v Node-RED
 arch:
   - amd64
   - aarch64
@@ -14,6 +14,8 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:solar-power
 options:
+  pump_control_enabled: true
+  pump_temperature_fresh_seconds: 120
   tesla_enabled: true
   tesla_fresh_seconds: 900
   tesla_entities:
@@ -29,10 +31,11 @@ options:
     upper: sensor.tepla_voda
     lower: sensor.tuv_1
     pump: switch.kicony_kc868_a16_y04
-    stage_0: switch.tuv_0kw
-    stage_1: switch.tuv_1kw
-    stage_2: switch.tuv_2kw
-    stage_3: switch.tuv_3kw
+    power: select.automatizace_kicony_vykon_tuv
+    system: sensor.stav_systemu_tuv
+    overload: binary_sensor.sonoff_4ch_button_1
+    sensor_reset: switch.kicony_kc868_a16_y15
+    uptime: sensor.esp_tuv_cas_behu
   mqtt_enabled: false
   mqtt_host: core-mosquitto
   mqtt_port: 1883
@@ -52,6 +55,8 @@ options:
     solar_shelter: victron/N/c0619ab221ee/solarcharger/278/Yield/Power
     solar_fence: victron/N/c0619ab221ee/solarcharger/1/Yield/Power
 schema:
+  pump_control_enabled: bool
+  pump_temperature_fresh_seconds: int(30,900)
   tesla_enabled: bool
   tesla_fresh_seconds: int(30,86400)
   tesla_entities:
@@ -67,10 +72,11 @@ schema:
     upper: str
     lower: str
     pump: str
-    stage_0: str
-    stage_1: str
-    stage_2: str
-    stage_3: str
+    power: str
+    system: str
+    overload: str
+    sensor_reset: str
+    uptime: str
   mqtt_enabled: bool
   mqtt_host: str
   mqtt_port: port

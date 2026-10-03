@@ -3,9 +3,10 @@ package homeassistant
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -15,11 +16,7 @@ func fixture(now time.Time, stage int) *Reader {
 	c := DefaultConfig()
 	// Anonymous IDs in test fixtures, unrelated to the installation.
 	for key := range c.Entities {
-		if key == "upper" || key == "lower" {
-			c.Entities[key] = "sensor.test_" + key
-		} else {
-			c.Entities[key] = "switch.test_" + key
-		}
+		c.Entities[key] = strings.SplitN(c.Entities[key], ".", 2)[0] + ".test_" + key
 	}
 	r := New(c, "test-secret")
 	r.connected = true
@@ -30,8 +27,13 @@ func fixture(now time.Time, stage int) *Reader {
 		if key == "upper" || key == "lower" {
 			s.State = "48.5"
 			s.Attributes.Unit = "°C"
-		} else if key == fmt.Sprintf("stage_%d", stage) {
-			s.State = "on"
+		} else if key == "power" {
+			s.State = []string{"Vypnuto", "1 kW", "2 kW", "3 kW"}[stage]
+		} else if key == "system" {
+			s.State = "Aktivní"
+		} else if key == "uptime" {
+			s.State = "3600"
+			s.Attributes.Unit = "s"
 		}
 		r.states[key] = s
 	}
@@ -46,25 +48,20 @@ func TestStagesAndInvalidFeedback(t *testing.T) {
 			t.Fatalf("stage %d: %+v", stage, s)
 		}
 	}
-	for _, change := range []struct {
-		key, state string
-		quality    string
-	}{
-		{"stage_1", "on", "conflict"}, {"stage_2", "off", "conflict"}, {"stage_0", "unavailable", "invalid"}, {"stage_0", "unknown", "invalid"}, {"stage_0", "", "invalid"},
-	} {
+	for _, state := range []string{"unknown", "unavailable", "", "0", "2", "2kW", "4 kW", "on"} {
 		r := fixture(now, 2)
-		s := r.states[change.key]
-		s.State = change.state
-		r.states[change.key] = s
+		s := r.states["power"]
+		s.State = state
+		r.states["power"] = s
 		out := r.Snapshot(now)
-		if out.NominalPower.Value != nil || out.NominalPower.Quality != change.quality {
-			t.Fatalf("%+v: %+v", change, out.NominalPower)
+		if out.NominalPower.Value != nil || out.NominalPower.Quality != "invalid" {
+			t.Fatalf("%s: %+v", state, out.NominalPower)
 		}
 	}
 	r := fixture(now, 2)
-	delete(r.states, "stage_0")
-	if r.Snapshot(now).NominalPower.Value != nil {
-		t.Fatal("missing switch must not confirm power")
+	delete(r.states, "power")
+	if r.Snapshot(now).NominalPower.Value != nil || r.Snapshot(now).NominalPower.Quality != "missing" {
+		t.Fatal("missing select must not confirm power")
 	}
 }
 
@@ -97,9 +94,9 @@ func TestTemperatureQualityAndTransport(t *testing.T) {
 		t.Fatal("last_updated fallback")
 	}
 	// Unchanged switch timestamps do not imply a dead connection.
-	s = r.states["stage_2"]
+	s = r.states["power"]
 	s.LastReported = now.Add(-24 * time.Hour)
-	r.states["stage_2"] = s
+	r.states["power"] = s
 	if r.Snapshot(now).NominalPower.Quality != "valid" {
 		t.Fatal("stable switch state should remain readable")
 	}
@@ -135,7 +132,7 @@ func TestReadOnlyPollingAndPrivacy(t *testing.T) {
 	defer server.Close()
 	r.baseURL = server.URL + "/template"
 	r.poll(context.Background())
-	if len(r.states) != 7 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" {
+	if len(r.states) != 8 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" {
 		t.Fatal("poll did not select expected states")
 	}
 	b, _ := json.Marshal(r.Snapshot(time.Now()))
@@ -166,7 +163,7 @@ func TestConfigAndNoToken(t *testing.T) {
 		t.Fatal("invalid entity accepted")
 	}
 	c = DefaultConfig()
-	c.Entities["stage_1"] = c.Entities["stage_0"]
+	c.Entities["sensor_reset"] = c.Entities["pump"]
 	if c.Validate() == nil {
 		t.Fatal("duplicate feedback accepted")
 	}
@@ -198,5 +195,73 @@ func TestUnchangedTemperatureUsesLiveReportTime(t *testing.T) {
 	r.poll(context.Background())
 	if reading := r.Snapshot(time.Now()).Readings["lower"]; reading.Quality != "stale" || reading.Value != nil {
 		t.Fatal("fresh HTTP receipt must not validate an old temperature report", reading)
+	}
+}
+
+func TestKiconyBlocksFreshnessAndIndependentInputs(t *testing.T) {
+	now := time.Now()
+	for _, state := range []string{"Obnova čidel TUV", "Zablokováno (Teplota)", "Zablokováno (Porucha čidel po 3 resetech)", "Zablokováno (Porucha čidla)", "Zablokováno (Watchdog)", "Zablokováno (Přetížení)", "Aktivní", "unknown", "unavailable", "private-state"} {
+		r := fixture(now, 0)
+		s := r.states["system"]
+		s.State = state
+		r.states["system"] = s
+		out := r.Snapshot(now)
+		invalid := state == "unknown" || state == "unavailable" || state == "private-state"
+		if (out.Readings["system"].Text == nil) != invalid || out.NominalPower.Quality != "valid" || *out.NominalPower.Value != 0 {
+			t.Fatal("block text is independent of a valid zero power", out)
+		}
+	}
+	for _, key := range []string{"system", "uptime"} {
+		for _, age := range []time.Duration{4 * time.Minute, -time.Second} {
+			r := fixture(now, 2)
+			s := r.states[key]
+			s.LastReported = now.Add(-age)
+			r.states[key] = s
+			v := r.Snapshot(now).Readings[key]
+			if v.Quality != "stale" || v.Text != nil || v.Value != nil {
+				t.Fatal("stale periodic report must not remain visible", v)
+			}
+		}
+	}
+	r := fixture(now, 2)
+	for _, key := range []string{"overload", "sensor_reset"} {
+		s := r.states[key]
+		s.State = "on"
+		s.LastReported = now.Add(-time.Hour)
+		r.states[key] = s
+	}
+	out := r.Snapshot(now)
+	if *out.Readings["overload"].Value != 1 || *out.Readings["sensor_reset"].Value != 1 || *out.Readings["system"].Text != "Aktivní" {
+		t.Fatal("inputs must remain independent of textual report", out)
+	}
+	out = r.Snapshot(now.Add(21 * time.Second))
+	for _, v := range out.Readings {
+		if v.Value != nil || v.Text != nil {
+			t.Fatal("transport outage must clear all visible values", v)
+		}
+	}
+}
+
+func TestLegacyTuvOptionsMigrateWithoutChangingExternalTemperature(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "options.json")
+	legacy := `{"ha_enabled":true,"ha_entities":{"upper":"sensor.test_external_water","lower":"sensor.test_lower","pump":"switch.test_pump","stage_0":"switch.test_old_0","stage_1":"switch.test_old_1","stage_2":"switch.test_old_2","stage_3":"switch.test_old_3"}}`
+	if err := os.WriteFile(path, []byte(legacy), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil || len(c.Entities) != 8 || c.Entities["upper"] != "sensor.test_external_water" || c.Entities["pump"] != "switch.test_pump" || c.Entities["power"] != DefaultConfig().Entities["power"] {
+		t.Fatal("migration must retain custom mappings and add select", c.Entities, err)
+	}
+	for key, entity := range c.Entities {
+		if strings.HasPrefix(key, "stage_") || entity == "sensor.tuv_2" {
+			t.Fatal("old switches and TUV2 must not be read")
+		}
+	}
+	// An explicitly supplied invalid select must not be silently replaced.
+	if err := os.WriteFile(path, []byte(`{"ha_entities":{"power":""}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err == nil {
+		t.Fatal("explicit empty mapping must fail validation")
 	}
 }
