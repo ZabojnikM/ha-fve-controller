@@ -199,6 +199,53 @@ func TestInverterTopicUpgradeAndQuality(t *testing.T) {
 	}
 }
 
+func TestGridPhasesAndUpgrade(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "options.json")
+	if err := os.WriteFile(path, []byte(`{"mqtt_enabled":true,"mqtt_topics":{"battery":"victron/N/test/battery/0/Dc/0/Power","grid_l2":""}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil || !strings.HasSuffix(c.Topics["grid_l1"], "/Ac/Grid/L1/Power") || !strings.HasSuffix(c.Topics["grid_l3"], "/Ac/Grid/L3/Power") || c.Topics["grid_l2"] != "" || c.Topics["battery"] != "victron/N/test/battery/0/Dc/0/Power" {
+		t.Fatal("upgrade must fill missing phases and preserve explicit settings")
+	}
+	for _, phase := range []string{"l1", "l2", "l3"} {
+		c.Topics["grid_"+phase] = "victron/N/test/system/0/Ac/Grid/" + strings.ToUpper(phase) + "/Power"
+	}
+	if c.Validate() != nil {
+		t.Fatal("grid topics rejected")
+	}
+	r := New(c)
+	r.connected = true
+	now := time.Now()
+	for _, key := range []string{"grid_l1", "grid_l2", "grid_l3"} {
+		if r.Snapshot(now).Readings[key].Quality != "missing" {
+			t.Fatal("missing phase is not zero")
+		}
+		for _, value := range []float64{0, 425.5, -200} {
+			r.receive(c.Topics[key], []byte(fmt.Sprintf(`{"value":%g}`, value)), false, now)
+			got := r.Snapshot(now).Readings[key]
+			if got.Quality != "valid" || got.Value == nil || *got.Value != value || got.Unit != "W" {
+				t.Fatal("grid signs, precision or zero lost")
+			}
+		}
+	}
+	r.receive(c.Topics["grid_l2"], []byte(`{"value":null}`), false, now)
+	if r.Snapshot(now).Readings["grid_l2"].Quality != "invalid" || r.Snapshot(now).Readings["grid_l1"].Quality != "valid" {
+		t.Fatal("invalid phase must not hide another phase")
+	}
+	if r.Snapshot(now.Add(61 * time.Second)).Readings["grid_l3"].Quality != "stale" {
+		t.Fatal("stale phase")
+	}
+	r.receive(c.Topics["grid_l3"], []byte(`{"value":200}`), true, now)
+	if r.Snapshot(now).Readings["grid_l3"].Quality != "retained" {
+		t.Fatal("stored phase is not live")
+	}
+	r.connected = false
+	if r.Snapshot(now).Readings["grid_l1"].Quality != "offline" {
+		t.Fatal("grid outage")
+	}
+}
+
 func TestSubscriptionDenied(t *testing.T) {
 	topics := map[string]byte{"victron/N/test/battery/0/Soc": 0}
 	for _, results := range []map[string]byte{{}, {"victron/N/test/battery/0/Soc": 0x80}} {

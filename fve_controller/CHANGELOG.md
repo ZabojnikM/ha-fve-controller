@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.2
+
+- Odhad nabití TUV mezi horní a spodní teplotou podle dohodnutého vrstveného modelu; neplatná nebo zastaralá čidla zobrazí pomlčku. Podrobnosti výpočtu jsou v Diagnostice.
+- Výkony sítě L1, L2 a L3 z Victron MQTT pod výkonem měničů, pouze čísla ve W se zachováním znaménka. Nové topics se doplní do starší konfigurace, vlastní a prázdné nastavení se zachová.
+- Stejné rozměry tří horních karet, všechny bargrafy tlusté 18 px a nová ikona měničů.
+- Pouze sledování, bez příkazů do zařízení.
+
 ## 0.6.1
 
 - Výkon měničů čte potvrzený MQTT topic ConsumptionOnOutput/L1/Power, místo senzoru HA. Sdílí příjem a diagnostiku Victronu; bargraf zůstává do 7 kW.

@@ -57,6 +57,9 @@ Výchozí konfigurace již obsahuje potvrzené topics pro tuto instalaci. Maxim�
 ```yaml
 mqtt_topics:
   inverter: victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power
+  grid_l1: victron/N/c0619ab221ee/system/0/Ac/Grid/L1/Power
+  grid_l2: victron/N/c0619ab221ee/system/0/Ac/Grid/L2/Power
+  grid_l3: victron/N/c0619ab221ee/system/0/Ac/Grid/L3/Power
   min_cell: victron/N/c0619ab221ee/battery/99/System/MinCellVoltage
   max_cell: ""
   soc: victron/N/c0619ab221ee/battery/278/Soc
@@ -86,6 +89,12 @@ Historie se ukládá každé 2 s, uchovává 7 dní, API vrací posledních 120 
 
 Časování nevyřízených příkazů má izolovaný testovací model Tracker; není připojeno k výstupům ani API. Odeslaný výkon je vždy null. Načtení SQLite po restartu neobnovuje potvrzení příkazů. Před použitím skutečných vstupů v jádru doplnit zbývající čtecí adaptéry, ověřit znaménka, časová razítka a zpětnou vazbu. Aktivní řízení vyžaduje další implementaci, explicitní povolení a samostatné nasazení.
 
+## Odhad nabití TUV
+
+Mezi horní a spodní teplotou se zobrazuje orientační nabití nádrže. Model pro nádrž 300 l předpokládá rovnoměrný průřez, výšku vodního prostoru 170 cm a čidla 40/130 cm od dna. Vzorkuje se 170 vrstev po 1 cm v jejich středu. Pod spodním čidlem se použije spodní teplota, nad horním horní teplota; mezi nimi je lineární přechod. Nabití vrstvy je `clamp((teplota - 45) / 12, 0, 1)`; průměr vrstev se převede na procenta a zaokrouhlí na 0,1 %. Při horní teplotě nejvýše 45 °C je platný výsledek 0 %.
+
+Používají se již připojené horní/spodní teploty TUV. Obě musejí být platné a čerstvé, s číslem v rozsahu 0–100 °C. Při chybě, zastarání nebo vypnutém čtení je výsledek pomlčka, nikoli nula. Výsledek je odhad zásoby tepla, nikoli procento litrů vody ke sprchování. Technické vysvětlení je v Diagnostice. Výpočet probíhá pouze v dashboardu a nevstupuje do ovládání zařízení.
+
 ## Výkon měničů
 
 Od verze 0.6.1 se čte pouze přes MQTT: položka `mqtt_topics.inverter` má výchozí topic `victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power`. Jde o AC odběr na výstupu L1, včetně zařízení napájených z tohoto výstupu. Příjem a diagnostika se sdílejí s Victronem; hodnoty v W jsou v `GET /api/victron` pod `readings.inverter`. Žádný fallback na `sensor.vystupni_vykon` nebo simulaci není.
@@ -95,3 +104,9 @@ Při načtení starší konfigurace bez položky inverter ji backend doplní; os
 Platná nula se zobrazuje, záporná hodnota, null, chybný JSON, retained zpráva, výpadek spojení a stáří nad `mqtt_fresh_seconds` se nezobrazují jako živý výkon. Bargraf zůstává do 7 kW a vyšší hodnota se číselně neomezuje. Broker musí topic z GX přeposílat stejně jako ostatní telemetry; doplněk pouze odebírá, nepublikuje příkazy ani keepalive.
 
 Oficiální podklady ověřeny 3. 10. 2026: [Victron system](https://github.com/victronenergy/venus/wiki/dbus#system), [Victron MQTT](https://github.com/victronenergy/dbus-flashmq), [konfigurace apps](https://developers.home-assistant.io/docs/apps/configuration/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/), [Supervisor](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [MQTT HA](https://www.home-assistant.io/integrations/mqtt/).
+
+## Výkon sítě po fázích
+
+Pod výkonem měničů jsou samostatné číselné výkony L1, L2 a L3 v W, bez dalšího bargrafu. Topics `mqtt_topics.grid_l1`, `grid_l2`, `grid_l3` čtou `victron/N/c0619ab221ee/system/0/Ac/Grid/L1/Power` a odpovídající L2/L3. Chybějící položky starší konfigurace se při čtení doplní, výslovně prázdné nebo vlastní nastavení se zachová. Znaménko MQTT hodnoty se zachovává. Každá fáze má samostatnou platnost a čas příjmu v Diagnostice Victronu; výpadek jedné fáze nezneplatní ostatní. Nula není chybějící údaj a retained či zastaralá zpráva není živé měření.
+
+Tři horní karty mají stejnou velikost; na užších obrazovkách se skládají pod sebe. Všechny horní bargrafy včetně SOC mají výšku 18 px. Výkonové rozsahy 8/7/7 kW zůstávají.

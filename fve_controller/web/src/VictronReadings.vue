@@ -2,7 +2,7 @@
 import {computed} from 'vue'
 import type {VictronTelemetry} from './live'
 const props=defineProps<{data?:VictronTelemetry;error:boolean}>()
-const labels=[['soc','Stav nabití'],['battery','Tok baterie'],['min_cell','Nejnižší článek'],['max_cell','Nejvyšší článek'],['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot'],['inverter','Výkon měničů']]
+const labels=[['soc','Stav nabití'],['battery','Tok baterie'],['min_cell','Nejnižší článek'],['max_cell','Nejvyšší článek'],['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot'],['inverter','Výkon měničů'],['grid_l1','Síť L1'],['grid_l2','Síť L2'],['grid_l3','Síť L3']]
 const visibleLabels=computed(()=>labels.filter(([key])=>key!=='max_cell'||props.data?.readings[key]?.quality!=='not_configured'))
 const qualities:Record<string,string>={valid:'Přijatá data',invalid:'Neplatné měření',missing:'Čeká na první zprávu',not_configured:'Topic není nastaven',retained:'Uložená zpráva · stáří neověřeno',stale:'Zastaralá data',offline:'Spojení přerušeno'}
 const statuses:Record<string,string>={disabled:'Nepřipojeno',connecting:'Připojuje se',subscribing:'Přihlašuje odběr',listening:'Čte z MQTT',offline:'Spojení přerušeno',subscription_error:'Odběr se nepodařil · zkontrolujte oprávnění a restartujte doplněk'}

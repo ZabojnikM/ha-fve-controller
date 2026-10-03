@@ -25,14 +25,19 @@ type Config struct {
 	Topics       map[string]string `json:"mqtt_topics"`
 }
 
-var units = map[string]string{"min_cell": "V", "max_cell": "V", "soc": "%", "battery": "W", "solar_roof": "W", "solar_shelter": "W", "solar_fence": "W", "inverter": "W"}
+var units = map[string]string{"min_cell": "V", "max_cell": "V", "soc": "%", "battery": "W", "solar_roof": "W", "solar_shelter": "W", "solar_fence": "W", "inverter": "W", "grid_l1": "W", "grid_l2": "W", "grid_l3": "W"}
 
 const defaultInverterTopic = "victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power"
 
 func Load(path string) (Config, error) {
-	// Preserve saved topics; older options without this key gain the confirmed topic.
-	// An explicitly empty inverter topic stays disabled.
-	c := Config{Host: "core-mosquitto", Port: 1883, FreshSeconds: 60, Topics: map[string]string{"inverter": defaultInverterTopic}}
+	// Preserve saved topics; missing new keys gain the confirmed topics.
+	// An explicitly empty topic stays disabled.
+	c := Config{Host: "core-mosquitto", Port: 1883, FreshSeconds: 60, Topics: map[string]string{
+		"inverter": defaultInverterTopic,
+		"grid_l1":  "victron/N/c0619ab221ee/system/0/Ac/Grid/L1/Power",
+		"grid_l2":  "victron/N/c0619ab221ee/system/0/Ac/Grid/L2/Power",
+		"grid_l3":  "victron/N/c0619ab221ee/system/0/Ac/Grid/L3/Power",
+	}}
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return c, nil

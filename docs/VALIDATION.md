@@ -119,3 +119,17 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 - Uživatel potvrdil topic system/0/Ac/ConsumptionOnOutput/L1/Power. Přidán do existujícího čtecího MQTT adaptéru jako inverter v W. Odstraněno čtení tohoto výkonu z HA, samostatný API požadavek i samostatná diagnostická karta; měření sdílí Victron.
 - Go testy a vet prošly. Nové regrese: doplnění topicu do starší konfigurace bez přepsání uložených měření, zachování vlastního nebo prázdného topicu, nula, desetinný výkon, výkon nad limitem bargrafu, záporný/null/nečíselný/nekonečný vstup, stáří, retained, výpadek a čekání po resetu.
 - Vue-tsc a Vite build prošly. Vizuální desktop/mobil/340 px kontrola s fixtures a Playwright ověřila stejný vzhled, příjem z Victronu, nulu, zastaralý výkon, výpadky a absenci požadavku na /api/power (HA fallback). Limity 8/7/7 kW a plná číselná hodnota nad rozsahem zachovány. Živý příjem nového topicu v doplňku musí potvrdit uživatel po aktualizaci.
+
+## 3. 10. 2026 – lokální odhad nabití TUV (nevydáno)
+
+- Převzat finální opravený model ze sdíleného vlákna: 170 vrstev se vzorkem v půlce vrstvy, výška 170 cm, čidla 40/130 cm, hranice 45–57 °C, horní minimum, omezení každé vrstvy a zaokrouhlení na 0,1 %. Používá stávající živé teploty dashboardu.
+- Čtyři skupiny testů v web/tests/tuvCharge.test.ts prošly: opravené příklady (60/45 → 55,3 %, 60/50 → 75,5 %), meze 0/100 %, horní minimum včetně převrácení teplot, neplatné vstupy a monotónnost obou čidel. Spuštění node --test nebo pnpm test; vue-tsc a Vite build prošly.
+- Lokální browser kontrola s anonymizovanými fixtures ověřila polohu procent uprostřed mezi čidly na desktopu i mobilu 390/340 px bez přetečení, opravený příklad, nulu/plné nabití a pomlčku při stale/invalid/offline. Diagnostika vysvětluje model a omezení; konzole bez chyb. Žádné změny živého HA nebo Node-RED.
+- Výslovný pokyn uživatele: zatím nepublikovat, další GitHub zveřejnění až po jeho novém pokynu. Verze ponechána 0.6.1, žádný commit/push/release.
+
+## 3. 10. 2026 – lokální síťové fáze a rozměry (nevydáno)
+
+- Potvrzené MQTT topics Ac/Grid/L1/Power a odpovídající L2/L3 přidány do existujícího čtecího adaptéru, options/schema a diagnostiky; pod měniči se zobrazují pouze čísla ve W, bez bargrafu. Znaménko zachované. Starší konfigurace doplňuje chybějící klíče; explicitní prázdná/vlastní nastavení nepřepisuje.
+- Go test/vet prošly, včetně regrese migrace, nuly, přesnosti, záporného výkonu, invalid jedné fáze bez dopadu na další, stale, retained a výpadku spojení. Prošel i test předchozího nevydaného modelu TUV, vue-tsc a Vite build.
+- Browser kontrola s fixtures: stejné rozměry tří horních karet (desktop přibližně 341×319 px; mobil 390 px 343×312 px; mobil 340 px 293×320 px), všechny 4 bargrafy 18 px, ikona měniče přítomná, fáze bez bargrafů. Zastará/chybějící/offline fáze se zobrazuje pomlčkou, žádné přetečení nebo chyby konzole. Živá data na instalaci nejsou tímto testem potvrzená.
+- Úpravy zůstávají společně s odhadem nabití TUV pouze lokálně podle výslovného zákazu publikace. Verze stále 0.6.1, bez commitu/pushe/release.
