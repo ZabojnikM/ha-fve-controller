@@ -43,10 +43,3 @@ export function solarTotal(readings:Record<string,Reading>|undefined,available:b
 export function format(value:number|null,decimals=1){
   return value===null?'—':value.toLocaleString('cs-CZ',{maximumFractionDigits:decimals})
 }
-export const qualities:Record<string,string>={valid:'Hlášení HA',missing:'Údaj chybí',not_configured:'Údaj není připojený',invalid:'Neplatný údaj',stale:'Zastaralé hlášení',offline:'Spojení přerušeno',retained:'Uložená zpráva · stáří neověřeno',conflict:'Stupeň neurčený · rozporné přepínače'}
-export function sourceStatus(source:Source<{enabled:boolean;connected:boolean;status:string}>,mqtt=false){
-  if(source.error)return 'Backend nedostupný'
-  if(!source.data)return 'Načítám data'
-  const statuses:Record<string,string>={disabled:'Čtení vypnuté',connecting:'Připojuje se',subscribing:'Přihlašuje odběr',listening:mqtt?'MQTT · připojeno':'HA · připojeno',offline:'Spojení přerušeno',unauthorized:'HA odmítl přístup',no_token:'Chybí přístup k HA',error:'Data nelze načíst',stale:'Spojení zastaralo',subscription_error:'Chyba odběru MQTT'}
-  return statuses[source.data.status]??'Stav není dostupný'
-}

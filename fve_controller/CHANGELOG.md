@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.2
+
+- Hlavní přehled bez diagnostických popisků, časových hlášení, zdrojových štítků a technických poznámek. Hodnoty, jejich názvy a výrazné provozní stavy zůstávají.
+- Časy, platnost, připojení, vysvětlení údajů a verze jsou soustředěné do rozbalovací sekce Diagnostika.
+- Neplatné a zastaralé hodnoty se stále nezobrazují jako platná čísla; podrobný důvod je v diagnostice.
+
 ## 0.5.1
 
 - Výraznější stav TUV: samostatný nápis vypnutého nebo zvoleného ohřevu, kontrastní vybraný stupeň s fajfkou a jasně označené neaktivní stupně.

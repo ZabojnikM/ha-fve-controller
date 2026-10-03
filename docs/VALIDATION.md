@@ -102,3 +102,8 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 
 - Vybraný celkový stupeň má kontrastní tmavý podklad a fajfku, ohřev nad 0 kW zelený, 0 kW tmavě šedý. Samostatný stavový pruh ukazuje vypnutý/zvolený/neznámý ohřev; neznámé stupně nejsou označené jako vypnuté. Čerpadlo i vypnuté řízení doplňkem mají textový a barevný štítek. Stále pouze hlášení HA.
 - vue-tsc a produkční Vite build prošly; Playwright a vizuální kontrola na desktopu, mobilu 390/340 px a pro stavy 0/2 kW, zastaralou teplotu a konflikt prošly. Backend ani ovládání se nemění.
+
+## Přesun technických popisků do diagnostiky — 0.5.2, 3. 10. 2026
+
+- Z hlavních karet odstraněny časové značky, zdrojová hlášení, stavy transportu, detailní důvody kvality a vysvětlující poznámky. Názvy hodnot, jednotky, zvolený ohřev, stav čerpadla/nabíjení a kabelu zůstávají. Verze a vypnuté řízení přeneseny do rozbalovací sekce Diagnostika. Filtrace neplatných/zastaralých dat se nemění; pomlčka není nahrazena nulou.
+- Produkční build/vue-tsc a vizuální kontrola desktop/mobil prošly. Playwright ověřil absenci technických popisků v hlavních kartách a zachování hlášení HA/limitů stáří v diagnostice, včetně regrese nul, zastaralosti, konfliktů, výpadků a simulace.

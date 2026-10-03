@@ -18,9 +18,9 @@ Uživatel 2. 10. 2026 potvrdil úspěšnou instalaci a spuštění. Jde o potvrz
 
 ### Hlavní přehled (od verze 0.5.0)
 
-Hlavní karty zobrazují skutečné údaje připojených zdrojů: výrobu tří stringů a domácí baterii z MQTT, obě teploty a jmenovitý stupeň TUV, čerpadlo a nabíjení Tesly z HA. Součet výroby se zobrazuje jen při platných údajích všech tří stringů. Platná nula zůstává nulou; chybějící, neplatné, zastaralé nebo přerušené čtení zobrazí pomlčku a důvod. Výpadek jednoho zdroje neskrývá ostatní. Uživatel 2. 10. potvrdil kladný tok baterie při nabíjení a záporný při vybíjení.
+Hlavní karty zobrazují skutečné údaje připojených zdrojů: výrobu tří stringů a domácí baterii z MQTT, obě teploty a jmenovitý stupeň TUV, čerpadlo a nabíjení Tesly z HA. Součet výroby se zobrazuje jen při platných údajích všech tří stringů. Platná nula zůstává nulou; chybějící, neplatné, zastaralé nebo přerušené čtení zobrazí pomlčku; důvod je v diagnostice. Výpadek jednoho zdroje neskrývá ostatní. Uživatel 2. 10. potvrdil kladný tok baterie při nabíjení a záporný při vybíjení.
 
-Sekce **Zdroje dat a diagnostika** obsahuje podrobné hodnoty, časové značky a limity stáří. **Simulátor a modelová doporučení** je oddělená rozbalovací sekce, která se načte až po otevření. Modelová historie a balancování jsou pouze zde; živá historie ani živé rozhodovací jádro zatím nejsou připojené. Hlavní přehled nikdy nepřebírá chybějící hodnotu ze simulace.
+Sekce **Diagnostika** obsahuje podrobné hodnoty, časové značky a limity stáří. **Simulátor a modelová doporučení** je oddělená rozbalovací sekce, která se načte až po otevření. Modelová historie a balancování jsou pouze zde; živá historie ani živé rozhodovací jádro zatím nejsou připojené. Hlavní přehled nikdy nepřebírá chybějící hodnotu ze simulace.
 
 Doplněk stále pracuje pouze ve sledovacím režimu. Hlášený stupeň TUV není měřený příkon ani potvrzení fyzického sepnutí. Nastavený proud Tesly není skutečný odběr. Vzhled stupňů TUV je indikátor stavu, nikoli ovládací prvek. Předání fyzického řízení TUV vyžaduje samostatný výslovně povolený krok a ověření ochran i jediného vlastníka výstupů.
 
