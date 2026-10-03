@@ -97,3 +97,8 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 - Playwright kontrola sestavené aplikace s anonymizovanými API fixtures: desktop 1280 px, mobil 390 px, úzký mobil 340 px, bez horizontálního přetečení a chyb konzole. Vizuálně prohlédnuty screenshoty desktop/mobil i zastaralý/rozporný stav.
 - Významné regresní případy: platná nula výroby a proudu zůstává nulou; kladný/záporný tok baterie; skutečný a nastavený proud zůstávají oddělené; TUV 0 kW/2 kW aktivuje právě jeden celkový stupeň; rozporné přepínače neaktivují žádný. Jeden zastaralý string zneplatní celý součet výroby; zastaralá teplota a proud se skryjí; výpadek TUV zachová platnou Teslu; vypnutý MQTT nedostane modelový fallback. Výchozí přehled nevolá /api/state ani odesílací POST. Oddělený simulátor a diagnostika se dají rozbalit.
 - Publication check prošel pro všech 59 zamýšlených veřejných souborů (včetně tří nových Vue/TS souborů), git diff --check prošel. Screenshoty a pomocný QA skript zůstávají v ignorovaných artifacts. Není vydáno ani nasazeno; interní HA template endpoint vyžaduje živé ověření po samostatném vydání.
+
+## Kontrast stavů TUV — 0.5.1, 3. 10. 2026
+
+- Vybraný celkový stupeň má kontrastní tmavý podklad a fajfku, ohřev nad 0 kW zelený, 0 kW tmavě šedý. Samostatný stavový pruh ukazuje vypnutý/zvolený/neznámý ohřev; neznámé stupně nejsou označené jako vypnuté. Čerpadlo i vypnuté řízení doplňkem mají textový a barevný štítek. Stále pouze hlášení HA.
+- vue-tsc a produkční Vite build prošly; Playwright a vizuální kontrola na desktopu, mobilu 390/340 px a pro stavy 0/2 kW, zastaralou teplotu a konflikt prošly. Backend ani ovládání se nemění.

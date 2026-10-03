@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- Výraznější stav TUV: samostatný nápis vypnutého nebo zvoleného ohřevu, kontrastní vybraný stupeň s fajfkou a jasně označené neaktivní stupně.
+- Barevné a textové štítky čerpadla a vypnutého řízení doplňkem. Neznámý stupeň se odlišuje od vypnutého.
+- Indikátory nadále zobrazují pouze hlášení HA, bez fyzických příkazů.
+
 ## 0.5.0
 
 - Hlavní energetický přehled napojen na skutečnou výrobu, domácí baterii, TUV a Teslu. Bez nahrazování chybějících živých údajů simulací.
