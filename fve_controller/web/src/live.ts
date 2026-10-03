@@ -4,12 +4,14 @@ export type Reading={value:number|null;text?:string;unit:string;quality:string;s
 export type VictronTelemetry={enabled:boolean;connected:boolean;status:string;fresh_seconds:number;readings:Record<string,Reading>}
 export type TuvTelemetry={enabled:boolean;connected:boolean;status:string;received_at:string|null;temperature_fresh_seconds:number;readings:Record<string,Reading>;nominal_power:Reading}
 export type TeslaTelemetry={enabled:boolean;connected:boolean;status:string;received_at:string|null;fresh_seconds:number;readings:Record<string,Reading>}
+export type PowerTelemetry={enabled:boolean;connected:boolean;status:string;fresh_seconds:number;readings:Record<string,Reading>}
 export type Source<T>={data?:T;error:boolean}
 
 // One refresh per source, shared by the overview and diagnostics. No simulated fallback.
 export function useLiveTelemetry(){
   const victron=ref<Source<VictronTelemetry>>({error:false})
   const tuv=ref<Source<TuvTelemetry>>({error:false})
+  const power=ref<Source<PowerTelemetry>>({error:false})
   const tesla=ref<Source<TeslaTelemetry>>({error:false})
   let pending=false,stopped=false
   async function fetchSource<T>(path:string):Promise<Source<T>>{
@@ -23,14 +25,14 @@ export function useLiveTelemetry(){
     if(pending)return
     pending=true
     try{
-      const results=await Promise.all([fetchSource<VictronTelemetry>('api/victron'),fetchSource<TuvTelemetry>('api/tuv'),fetchSource<TeslaTelemetry>('api/tesla')])
-      if(!stopped){[victron.value,tuv.value,tesla.value]=results}
+      const results=await Promise.all([fetchSource<VictronTelemetry>('api/victron'),fetchSource<TuvTelemetry>('api/tuv'),fetchSource<TeslaTelemetry>('api/tesla'),fetchSource<PowerTelemetry>('api/power')])
+      if(!stopped){[victron.value,tuv.value,tesla.value,power.value]=results}
     }finally{pending=false}
   }
   let timer:ReturnType<typeof setInterval>
   onMounted(()=>{refresh();timer=setInterval(refresh,2000)})
   onUnmounted(()=>{stopped=true;clearInterval(timer)})
-  return {victron,tuv,tesla}
+  return {victron,tuv,tesla,power}
 }
 
 export function numeric(reading:Reading|undefined,available:boolean):number|null{

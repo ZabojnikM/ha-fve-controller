@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- Kompaktní hlavní přehled bez úvodního textu, duplicitní karty baterie a simulátoru.
+- Výrazný SOC, směr a výkon baterie, procentní bargraf SOC a výkonové bargrafy: výroba 8 kW, baterie 7 kW, měniče 7 kW.
+- Výkon měničů ze sensor.vystupni_vykon, pouze čtení ve společném HA cyklu; W/kW, platnost a stáří se ověřují. Podrobnosti jsou v Diagnostice.
+
 ## 0.5.2
 
 - Hlavní přehled bez diagnostických popisků, časových hlášení, zdrojových štítků a technických poznámek. Hodnoty, jejich názvy a výrazné provozní stavy zůstávají.

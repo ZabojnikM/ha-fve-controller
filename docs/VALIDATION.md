@@ -107,3 +107,9 @@ Toto doplňuje starší lokální výsledky výše: Docker je nyní ověřen v C
 
 - Z hlavních karet odstraněny časové značky, zdrojová hlášení, stavy transportu, detailní důvody kvality a vysvětlující poznámky. Názvy hodnot, jednotky, zvolený ohřev, stav čerpadla/nabíjení a kabelu zůstávají. Verze a vypnuté řízení přeneseny do rozbalovací sekce Diagnostika. Filtrace neplatných/zastaralých dat se nemění; pomlčka není nahrazena nulou.
 - Produkční build/vue-tsc a vizuální kontrola desktop/mobil prošly. Playwright ověřil absenci technických popisků v hlavních kartách a zachování hlášení HA/limitů stáří v diagnostice, včetně regrese nul, zastaralosti, konfliktů, výpadků a simulace.
+
+## 3. 10. 2026 – přehled 0.6.0
+
+- Go testy a vet prošly. Nový čtecí výkon měničů: W/kW, skutečná nula, chybějící/NaN/záporná hodnota/jiná jednotka, hlášení v budoucnu nebo starší než 60 s, transport po 20 s a odmítnutí přístupu. Společný HA template požadavek vybírá TUV, Teslu a výkon měničů v jediném cyklu; API je chráněné Ingressem a nevystavuje tokeny.
+- Vue-tsc a produkční Vite build prošly. Playwright s anonymizovanými fixtures ověřil desktop 1280 px, mobil 390 px a úzký mobil 340 px bez přetečení, pevná maxima 8/7/7 kW, SOC, nabíjení/vybíjení, nuly, nedostupná data, TUV konflikt i nezávislý výpadek. Překročení maxima sytí bargraf a zachovává plnou hodnotu. Žádné chyby konzole ani požadavky na ovládání nebo modelové API. Snímky vizuálně zkontrolované.
+- Úvodní text, duplicitní karta domácí baterie a simulátor odstraněné z rozhraní; technické podklady zůstávají v Diagnostice. Živá entita sensor.vystupni_vykon vyžaduje uživatelské porovnání po aktualizaci; lokální kontrola používá fixtures.

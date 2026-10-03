@@ -2,8 +2,8 @@
 import {computed} from 'vue'
 import EnergyIcon from './EnergyIcon.vue'
 import {numeric,solarTotal,format} from './live'
-import type {Source,VictronTelemetry,TuvTelemetry,TeslaTelemetry} from './live'
-const props=defineProps<{victron:Source<VictronTelemetry>;tuv:Source<TuvTelemetry>;tesla:Source<TeslaTelemetry>}>()
+import type {Source,VictronTelemetry,TuvTelemetry,TeslaTelemetry,PowerTelemetry} from './live'
+const props=defineProps<{victron:Source<VictronTelemetry>;tuv:Source<TuvTelemetry>;tesla:Source<TeslaTelemetry>;power:Source<PowerTelemetry>}>()
 const strings=[['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot']]
 const vReady=computed(()=>!props.victron.error&&!!props.victron.data?.enabled&&!!props.victron.data?.connected)
 const tReady=computed(()=>!props.tuv.error&&!!props.tuv.data?.enabled&&!!props.tuv.data?.connected)
@@ -18,7 +18,9 @@ const direction=computed(()=>{
   return watts===null?'Tok není dostupný':watts>0?'Nabíjí se':watts<0?'Vybíjí se':'Bez toku'
 })
 function kw(value:number|null){return value===null?'—':format(value/1000,2)}
-function share(key:string){return total.value!==null&&total.value>0?Math.max(0,(v(key)??0)/total.value*100):0}
+const inverter=computed(()=>numeric(props.power.data?.readings.inverter,!props.power.error&&!!props.power.data?.enabled&&!!props.power.data?.connected))
+function load(value:number|null,max:number){return value===null?0:Math.min(100,Math.max(0,Math.abs(value)/max*100))}
+function share(key:string){return total.value!==null?Math.max(0,(v(key)??0)/Math.max(8000,total.value)*100):0}
 function percent(value:number|null){return value===null?0:Math.min(100,Math.max(0,value))}
 const charging=computed(()=>{
   const r=props.tesla.data?.readings.charging
@@ -31,14 +33,28 @@ const pump=computed(()=>t('pump')===null?'—':t('pump')===1?'Zapnuté':'Vypnut�
 </script>
 <template>
   <div class="live-overview">
-    <section class="energy-overview" aria-labelledby="solar-live-title">
-      <div class="energy-heading">
-        <div class="solar-total"><div class="eyebrow"><EnergyIcon name="sun"/><h2 id="solar-live-title">Solární výroba</h2></div><div class="metric" data-testid="solar-total">{{format(total,0)}} <small>W</small></div></div>
-        <div class="battery-glance"><span class="muted"><EnergyIcon name="battery"/> Baterie</span><strong>{{format(v('soc'))}} <small>%</small></strong><span class="muted">{{direction}} · {{kw(v('battery'))}} kW</span></div>
+    <section class="power-overview" aria-label="Výroba, baterie a měniče">
+      <div class="power-tile solar-total">
+        <div class="eyebrow"><EnergyIcon name="sun"/><h2>Solární výroba</h2></div>
+        <div class="metric" data-testid="solar-total">{{format(total,0)}} <small>W</small></div>
+        <div class="production-bar power-bar" role="meter" aria-label="Solární výroba" :aria-valuenow="total===null?undefined:Math.min(8000,total)" aria-valuemin="0" aria-valuemax="8000" :aria-valuetext="total===null?'Nedostupné':`${format(total,0)} W`"><span v-for="[key] in strings" :key="key" :class="key" :style="{width:share(key)+'%'}"></span></div>
+        <div class="bar-scale"><span>0</span><span>8 kW</span></div>
+        <div class="solar-readings"><div v-for="[key,label] in strings" :key="key" class="solar-string"><h3><i :class="key"></i>{{label}}</h3><strong>{{format(v(key),0)}} <small>W</small></strong></div></div>
       </div>
-      <div class="production-bar" role="img" :aria-label="total===null?'Součet výroby není dostupný':`Výroba ${format(total,0)} W; střecha ${format(v('solar_roof'),0)} W, přístřešek ${format(v('solar_shelter'),0)} W, plot ${format(v('solar_fence'),0)} W`"><span v-for="[key] in strings" :key="key" :class="key" :style="{width:share(key)+'%'}"></span></div>
-      <div class="solar-readings"><div v-for="[key,label] in strings" :key="key" class="solar-string"><h3><i :class="key"></i>{{label}}</h3><strong>{{format(v(key),0)}} <small>W</small></strong></div></div>
-
+      <div class="power-tile battery-tile" :class="v('battery')===null?'unknown':(v('battery')??0)<0?'discharging':'charging'">
+        <div class="eyebrow"><EnergyIcon name="battery"/><h2>Baterie</h2></div>
+        <div class="battery-soc metric">{{format(v('soc'))}} <small>%</small></div>
+        <div class="soc-bar" role="meter" aria-label="Stav nabití baterie" :aria-valuenow="v('soc')??undefined" aria-valuemin="0" aria-valuemax="100" :aria-valuetext="v('soc')===null?'Nedostupné':`${format(v('soc'))} %`"><i :style="{width:percent(v('soc'))+'%'}"></i></div>
+        <div class="battery-flow"><strong>{{direction}}</strong><span data-testid="battery-power">{{kw(v('battery'))}} <small>kW</small></span></div>
+        <div class="power-bar" role="meter" aria-label="Velikost toku baterie" :aria-valuenow="v('battery')===null?undefined:Math.min(7000,Math.abs(v('battery')!))" aria-valuemin="0" aria-valuemax="7000" :aria-valuetext="`${direction} ${kw(v('battery'))} kW`"><i :style="{width:load(v('battery'),7000)+'%'}"></i></div>
+        <div class="bar-scale"><span>0</span><span>7 kW</span></div>
+      </div>
+      <div class="power-tile inverter-tile">
+        <div class="eyebrow"><h2>Výkon měničů</h2></div>
+        <div class="metric" data-testid="inverter-power">{{kw(inverter)}} <small>kW</small></div>
+        <div class="power-bar" role="meter" aria-label="Výkon měničů" :aria-valuenow="inverter===null?undefined:Math.min(7000,inverter)" aria-valuemin="0" aria-valuemax="7000" :aria-valuetext="inverter===null?'Nedostupné':`${kw(inverter)} kW`"><i :style="{width:load(inverter,7000)+'%'}"></i></div>
+        <div class="bar-scale"><span>0</span><span>7 kW</span></div>
+      </div>
     </section>
 
     <div class="loads">
@@ -53,6 +69,5 @@ const pump=computed(()=>t('pump')===null?'—':t('pump')===1?'Zapnuté':'Vypnut�
         <div class="device-detail"><p class="device-message">{{charging}}</p><dl><dt>Nabíjecí kabel</dt><dd>{{cable}}</dd><dt>Skutečný proud</dt><dd><span data-testid="tesla-current">{{format(car('current'))}} A</span></dd><dt>Nastavený proud</dt><dd><span data-testid="tesla-set-current">{{format(car('current_limit'))}} A</span></dd></dl></div>
       </section>
     </div>
-    <section class="card battery-card live-battery" aria-labelledby="battery-live-title"><div class="cardhead"><h2 id="battery-live-title"><EnergyIcon name="battery"/>Domácí baterie</h2></div><div class="battery-body"><div><div class="metric">{{format(v('soc'))}} <small>%</small></div><div class="bar" role="img" :aria-label="v('soc')===null?'Stav nabití není dostupný':`Stav nabití ${format(v('soc'))} %`"><i :style="{width:percent(v('soc'))+'%'}"></i></div></div><dl><dt>Tok baterie</dt><dd>{{format(v('battery'),0)}} W · {{direction}}</dd><dt>Nejnižší článek</dt><dd>{{format(v('min_cell'),3)}} V</dd><template v-if="victron.data?.readings.max_cell?.quality!=='not_configured'"><dt>Nejvyšší článek</dt><dd>{{format(v('max_cell'),3)}} V</dd></template></dl></div></section>
   </div>
 </template>

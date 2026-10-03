@@ -138,8 +138,10 @@ type Reader struct {
 // Entity IDs are variables, never executable template text. No services are called.
 const stateTemplate = `{% set ns = namespace(items=[]) %}{% for entity_id in entity_ids %}{% set s = states[entity_id] %}{% if s is not none %}{% set ns.items = ns.items + [{'entity_id': entity_id, 'state': s.state, 'attributes': {'unit_of_measurement': s.attributes.get('unit_of_measurement', '')}, 'last_updated': s.last_updated.isoformat(), 'last_reported': s.last_reported.isoformat() if s.last_reported is defined else s.last_updated.isoformat()}] %}{% endif %}{% endfor %}{{ ns.items | to_json }}`
 
+const inverterEntity = "sensor.vystupni_vykon"
+
 func (r *Reader) templateRequest() []byte {
-	selected := map[string]bool{}
+	selected := map[string]bool{inverterEntity: true}
 	for _, entity := range r.config.Entities {
 		if entity != "" {
 			selected[entity] = true
@@ -207,6 +209,9 @@ func (r *Reader) poll(ctx context.Context) {
 	}
 	selected := map[string]State{}
 	for _, s := range states {
+		if s.EntityID == inverterEntity {
+			selected["inverter"] = s
+		}
 		for key, entity := range r.config.Entities {
 			if s.EntityID == entity {
 				selected[key] = s

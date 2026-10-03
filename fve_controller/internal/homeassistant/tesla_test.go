@@ -106,6 +106,9 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 	for _, s := range r.states {
 		states = append(states, s)
 	}
+	inverter := State{EntityID: inverterEntity, State: "3200", LastReported: now}
+	inverter.Attributes.Unit = "W"
+	states = append(states, inverter)
 	states = append(states, State{EntityID: "device_tracker.private_location", State: "private-location"})
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -121,8 +124,8 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 			t.Error("expected fixed read-only template")
 		}
 		entities := payload.Variables["entity_ids"]
-		if len(entities) != 13 {
-			t.Error("request must select only TUV and Tesla entities")
+		if len(entities) != 14 {
+			t.Error("request must select only TUV, Tesla and inverter entities")
 		}
 		for _, entity := range entities {
 			if entity == "device_tracker.private_location" || entity == "" {
@@ -134,7 +137,7 @@ func TestSharedPollingDoesNotExposeVehicleData(t *testing.T) {
 	defer server.Close()
 	r.baseURL = server.URL + "/template"
 	r.poll(context.Background())
-	if requests != 1 || len(r.states) != 13 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" || r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" {
+	if requests != 1 || len(r.states) != 14 || r.Snapshot(time.Now()).NominalPower.Quality != "valid" || r.TeslaSnapshot(time.Now()).Readings["soc"].Quality != "valid" || r.PowerSnapshot(time.Now()).Readings["inverter"].Quality != "valid" {
 		t.Fatal("TUV and Tesla must share one polling cycle")
 	}
 	b, _ := json.Marshal(r.TeslaSnapshot(time.Now()))
