@@ -38,7 +38,7 @@ Oficiální zdroje ověřené před implementací: [komunikace HA apps](https://
 
 ### TUV přes Home Assistant (od verze 0.3.0)
 
-Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér používá pouze POST `/core/api/template` s pevnou čtecí šablonou, bez volání služeb a změn stavů. HTTP POST zde pouze vyhodnocuje šablonu. Identifikátory vybraných entit se předávají jako proměnné, nikoli jako kód šablony; časy se čtou přímo z objektů stavů, aby se obešla serializační cache `/states`. TUV, Tesla a výkon měničů sdílejí jeden snímek každých 5 s. Pokud endpoint přístup odmítne, předchozí snímek se zneplatní; není fallback na uložený JSON `/states`.
+Karta „Teplá voda · skutečná data“ čte horní teplotu `sensor.tepla_voda`, spodní teplotu `sensor.tuv_1`, čerpadlo `switch.kicony_kc868_a16_y04` a celkové režimy `switch.tuv_0kw` až `switch.tuv_3kw`. Mapování je nastavitelné v `ha_entities`; `ha_enabled` má výchozí hodnotu true. Po aktualizaci restartujte doplněk. Není potřeba další heslo: backend použije `SUPERVISOR_TOKEN` a interní HA proxy. Konfigurace potřebuje `homeassistant_api: true`; Supervisor API oprávnění `hassio_api` zůstává vypnuté. Toto oprávnění HA samo o sobě není omezené na čtení; náš adaptér používá pouze POST `/core/api/template` s pevnou čtecí šablonou, bez volání služeb a změn stavů. HTTP POST zde pouze vyhodnocuje šablonu. Identifikátory vybraných entit se předávají jako proměnné, nikoli jako kód šablony; časy se čtou přímo z objektů stavů, aby se obešla serializační cache `/states`. TUV a Tesla sdílejí jeden snímek každých 5 s. Pokud endpoint přístup odmítne, předchozí snímek se zneplatní; není fallback na uložený JSON `/states`.
 
 Každých 5 s načte jeden snímek HA a ponechá pouze uvedené entity. Právě jeden zapnutý přepínač určuje jmenovitý výkon 0/1000/2000/3000 W. Žádný nebo více zapnutých přepínačů, chybějící entita a unknown/unavailable znamenají neurčený stav. TUV nemá měření příkonu: zvolený stupeň nepotvrzuje fyzické sepnutí spirál. Stav čerpadla je rovněž hlášení HA, nikoli měření průtoku.
 
@@ -56,6 +56,7 @@ Výchozí konfigurace již obsahuje potvrzené topics pro tuto instalaci. Maxim�
 
 ```yaml
 mqtt_topics:
+  inverter: victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power
   min_cell: victron/N/c0619ab221ee/battery/99/System/MinCellVoltage
   max_cell: ""
   soc: victron/N/c0619ab221ee/battery/278/Soc
@@ -87,4 +88,10 @@ Historie se ukládá každé 2 s, uchovává 7 dní, API vrací posledních 120 
 
 ## Výkon měničů
 
-Pevně vybraná entita `sensor.vystupni_vykon` se čte ve stejném cyklu HA každých 5 s a vystavuje na `GET /api/power`. Přijímají se nezáporná čísla v jednotkách W nebo kW (normalizace na W). Limit stáří hlášení je 60 s; příjem snímku má limit 20 s. Chybějící, neplatné nebo zastaralé hodnoty se zobrazují jako pomlčka. Toto čtení nemění stav zařízení ani konfiguraci HA. Oficiální podklady ověřeny 3. 10. 2026: [konfigurace apps](https://developers.home-assistant.io/docs/apps/configuration/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/), [Supervisor](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [MQTT](https://www.home-assistant.io/integrations/mqtt/).
+Od verze 0.6.1 se čte pouze přes MQTT: položka `mqtt_topics.inverter` má výchozí topic `victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power`. Jde o AC odběr na výstupu L1, včetně zařízení napájených z tohoto výstupu. Příjem a diagnostika se sdílejí s Victronem; hodnoty v W jsou v `GET /api/victron` pod `readings.inverter`. Žádný fallback na `sensor.vystupni_vykon` nebo simulaci není.
+
+Při načtení starší konfigurace bez položky inverter ji backend doplní; ostatní uložené topics se nemění. Výslovně prázdná položka zůstane vypnutá. Novou položku lze upravit v konfiguraci doplňku; po změně restartujte doplněk.
+
+Platná nula se zobrazuje, záporná hodnota, null, chybný JSON, retained zpráva, výpadek spojení a stáří nad `mqtt_fresh_seconds` se nezobrazují jako živý výkon. Bargraf zůstává do 7 kW a vyšší hodnota se číselně neomezuje. Broker musí topic z GX přeposílat stejně jako ostatní telemetry; doplněk pouze odebírá, nepublikuje příkazy ani keepalive.
+
+Oficiální podklady ověřeny 3. 10. 2026: [Victron system](https://github.com/victronenergy/venus/wiki/dbus#system), [Victron MQTT](https://github.com/victronenergy/dbus-flashmq), [konfigurace apps](https://developers.home-assistant.io/docs/apps/configuration/), [Ingress](https://developers.home-assistant.io/docs/apps/presentation/), [Supervisor](https://developers.home-assistant.io/docs/api/supervisor/endpoints/), [MQTT HA](https://www.home-assistant.io/integrations/mqtt/).

@@ -2,7 +2,7 @@
 import {computed} from 'vue'
 import type {VictronTelemetry} from './live'
 const props=defineProps<{data?:VictronTelemetry;error:boolean}>()
-const labels=[['soc','Stav nabití'],['battery','Tok baterie'],['min_cell','Nejnižší článek'],['max_cell','Nejvyšší článek'],['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot']]
+const labels=[['soc','Stav nabití'],['battery','Tok baterie'],['min_cell','Nejnižší článek'],['max_cell','Nejvyšší článek'],['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot'],['inverter','Výkon měničů']]
 const visibleLabels=computed(()=>labels.filter(([key])=>key!=='max_cell'||props.data?.readings[key]?.quality!=='not_configured'))
 const qualities:Record<string,string>={valid:'Přijatá data',invalid:'Neplatné měření',missing:'Čeká na první zprávu',not_configured:'Topic není nastaven',retained:'Uložená zpráva · stáří neověřeno',stale:'Zastaralá data',offline:'Spojení přerušeno'}
 const statuses:Record<string,string>={disabled:'Nepřipojeno',connecting:'Připojuje se',subscribing:'Přihlašuje odběr',listening:'Čte z MQTT',offline:'Spojení přerušeno',subscription_error:'Odběr se nepodařil · zkontrolujte oprávnění a restartujte doplněk'}
@@ -21,7 +21,7 @@ function value(key:string){const r=props.data?.readings[key];return !props.error
           <p v-if="data.readings[key]?.at" class="muted">Příjem {{new Date(data.readings[key].at!).toLocaleTimeString('cs-CZ')}}</p>
         </div>
       </div>
-      <p class="muted victron-note">Pouze čtení · limit stáří od příjmu {{data.fresh_seconds}} s. + nabíjení / − vybíjení. Tato data zatím nevstupují do simulačních doporučení.</p>
+      <p class="muted victron-note">Pouze čtení · limit stáří od příjmu {{data.fresh_seconds}} s. + nabíjení / − vybíjení. Výkon měničů: AC odběr na výstupu L1; bargraf do 7 kW. Tato data zatím nevstupují do simulačních doporučení.</p>
     </template>
   </section>
 </template>

@@ -25,10 +25,14 @@ type Config struct {
 	Topics       map[string]string `json:"mqtt_topics"`
 }
 
-var units = map[string]string{"min_cell": "V", "max_cell": "V", "soc": "%", "battery": "W", "solar_roof": "W", "solar_shelter": "W", "solar_fence": "W"}
+var units = map[string]string{"min_cell": "V", "max_cell": "V", "soc": "%", "battery": "W", "solar_roof": "W", "solar_shelter": "W", "solar_fence": "W", "inverter": "W"}
+
+const defaultInverterTopic = "victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power"
 
 func Load(path string) (Config, error) {
-	c := Config{Host: "core-mosquitto", Port: 1883, FreshSeconds: 60, Topics: map[string]string{}}
+	// Preserve saved topics; older options without this key gain the confirmed topic.
+	// An explicitly empty inverter topic stays disabled.
+	c := Config{Host: "core-mosquitto", Port: 1883, FreshSeconds: 60, Topics: map[string]string{"inverter": defaultInverterTopic}}
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return c, nil
@@ -131,7 +135,7 @@ func (r *Reader) receive(topic string, payload []byte, retained bool, now time.T
 			if key == "min_cell" || key == "max_cell" {
 				valid = v > 0 && v <= 5
 			}
-			if strings.HasPrefix(key, "solar_") {
+			if strings.HasPrefix(key, "solar_") || key == "inverter" {
 				valid = v >= 0
 			}
 			if valid {

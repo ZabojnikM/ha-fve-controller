@@ -144,6 +144,61 @@ func TestOptionsSafety(t *testing.T) {
 	}
 }
 
+func TestInverterTopicUpgradeAndQuality(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "options.json")
+	if err := os.WriteFile(path, []byte(`{"mqtt_enabled":true,"mqtt_topics":{"battery":"victron/N/test/battery/0/Dc/0/Power"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := Load(path)
+	if err != nil || c.Topics["inverter"] != defaultInverterTopic || c.Topics["battery"] != "victron/N/test/battery/0/Dc/0/Power" {
+		t.Fatal("upgrade must add inverter and preserve saved topics")
+	}
+	for _, topic := range []string{"", "victron/N/test/system/0/Ac/ConsumptionOnOutput/L1/Power"} {
+		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"mqtt_topics":{"inverter":%q}}`, topic)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := Load(path)
+		if err != nil || got.Topics["inverter"] != topic {
+			t.Fatal("explicit setting must be preserved")
+		}
+	}
+	c.Topics["inverter"] = "victron/N/test/system/0/Ac/ConsumptionOnOutput/L1/Power"
+	r := New(c)
+	r.connected = true
+	now := time.Now()
+	topic := c.Topics["inverter"]
+	for _, value := range []float64{0, 425.5, 8200} {
+		r.receive(topic, []byte(fmt.Sprintf(`{"value":%g}`, value)), false, now)
+		s := r.Snapshot(now).Readings["inverter"]
+		if s.Quality != "valid" || s.Value == nil || *s.Value != value || s.Unit != "W" {
+			t.Fatal("inverter zero, precision or overrange")
+		}
+	}
+	if r.Snapshot(now.Add(61 * time.Second)).Readings["inverter"].Quality != "stale" {
+		t.Fatal("stale inverter")
+	}
+	for _, payload := range []string{`{"value":-1}`, `{"value":null}`, `{"value":"425"}`, `{"value":1e999}`} {
+		r.receive(topic, []byte(payload), false, now)
+		s := r.Snapshot(now).Readings["inverter"]
+		if s.Quality != "invalid" || s.Value != nil {
+			t.Fatal("invalid inverter")
+		}
+	}
+	r.receive(topic, []byte(`{"value":425}`), true, now)
+	if r.Snapshot(now).Readings["inverter"].Quality != "retained" {
+		t.Fatal("retained is not current")
+	}
+	r.receive(topic, []byte(`{"value":425}`), false, now)
+	r.connected = false
+	if r.Snapshot(now).Readings["inverter"].Quality != "offline" {
+		t.Fatal("outage")
+	}
+	r.reset()
+	if r.Snapshot(now).Readings["inverter"].Value != nil {
+		t.Fatal("restart must wait for a new measurement")
+	}
+}
+
 func TestSubscriptionDenied(t *testing.T) {
 	topics := map[string]byte{"victron/N/test/battery/0/Soc": 0}
 	for _, results := range []map[string]byte{{}, {"victron/N/test/battery/0/Soc": 0x80}} {

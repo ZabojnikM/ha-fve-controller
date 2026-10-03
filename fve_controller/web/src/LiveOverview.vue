@@ -2,8 +2,8 @@
 import {computed} from 'vue'
 import EnergyIcon from './EnergyIcon.vue'
 import {numeric,solarTotal,format} from './live'
-import type {Source,VictronTelemetry,TuvTelemetry,TeslaTelemetry,PowerTelemetry} from './live'
-const props=defineProps<{victron:Source<VictronTelemetry>;tuv:Source<TuvTelemetry>;tesla:Source<TeslaTelemetry>;power:Source<PowerTelemetry>}>()
+import type {Source,VictronTelemetry,TuvTelemetry,TeslaTelemetry} from './live'
+const props=defineProps<{victron:Source<VictronTelemetry>;tuv:Source<TuvTelemetry>;tesla:Source<TeslaTelemetry>}>()
 const strings=[['solar_roof','Střecha'],['solar_shelter','Přístřešek'],['solar_fence','Plot']]
 const vReady=computed(()=>!props.victron.error&&!!props.victron.data?.enabled&&!!props.victron.data?.connected)
 const tReady=computed(()=>!props.tuv.error&&!!props.tuv.data?.enabled&&!!props.tuv.data?.connected)
@@ -18,7 +18,7 @@ const direction=computed(()=>{
   return watts===null?'Tok není dostupný':watts>0?'Nabíjí se':watts<0?'Vybíjí se':'Bez toku'
 })
 function kw(value:number|null){return value===null?'—':format(value/1000,2)}
-const inverter=computed(()=>numeric(props.power.data?.readings.inverter,!props.power.error&&!!props.power.data?.enabled&&!!props.power.data?.connected))
+const inverter=computed(()=>v('inverter'))
 function load(value:number|null,max:number){return value===null?0:Math.min(100,Math.max(0,Math.abs(value)/max*100))}
 function share(key:string){return total.value!==null?Math.max(0,(v(key)??0)/Math.max(8000,total.value)*100):0}
 function percent(value:number|null){return value===null?0:Math.min(100,Math.max(0,value))}

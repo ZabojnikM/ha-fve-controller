@@ -60,30 +60,6 @@ func TestTeslaAPIIngressAndPrivacy(t *testing.T) {
 	}
 }
 
-func TestPowerAPIIngressAndPrivacy(t *testing.T) {
-	a := &App{ha: homeassistant.New(homeassistant.DefaultConfig(), "test-secret")}
-	h := a.handler(t.TempDir(), true)
-	for _, peer := range []string{"1.2.3.4:1000", "172.30.32.2:1000"} {
-		r := httptest.NewRequest("GET", "/api/power", nil)
-		r.RemoteAddr = peer
-		w := httptest.NewRecorder()
-		h.ServeHTTP(w, r)
-		if peer == "1.2.3.4:1000" {
-			if w.Code != 403 {
-				t.Fatal("Tesla ingress")
-			}
-			continue
-		}
-		if w.Code != 200 || strings.Contains(w.Body.String(), "test-secret") || strings.Contains(w.Body.String(), "sensor.vystupni_vykon") {
-			t.Fatal("Tesla API privacy")
-		}
-		var out homeassistant.PowerSnapshot
-		if json.Unmarshal(w.Body.Bytes(), &out) != nil || !out.Enabled || out.Connected || out.Readings["inverter"].Value != nil {
-			t.Fatal("startup must wait for telemetry")
-		}
-	}
-}
-
 func TestVictronAPIIngressAndPrivacy(t *testing.T) {
 	a := &App{victron: victron.New(victron.Config{Password: "test-secret"})}
 	h := a.handler(t.TempDir(), true)

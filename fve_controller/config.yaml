@@ -1,5 +1,5 @@
 name: FVE Controller
-version: "0.6.0"
+version: "0.6.1"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller
@@ -40,6 +40,7 @@ options:
   mqtt_password: ""
   mqtt_fresh_seconds: 60
   mqtt_topics:
+    inverter: victron/N/c0619ab221ee/system/0/Ac/ConsumptionOnOutput/L1/Power
     min_cell: victron/N/c0619ab221ee/battery/99/System/MinCellVoltage
     max_cell: ""
     soc: victron/N/c0619ab221ee/battery/278/Soc
@@ -74,6 +75,7 @@ schema:
   mqtt_password: password
   mqtt_fresh_seconds: int(5,3600)
   mqtt_topics:
+    inverter: str
     min_cell: str
     max_cell: str
     soc: str

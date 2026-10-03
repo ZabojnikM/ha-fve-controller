@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1
+
+- Výkon měničů čte potvrzený MQTT topic ConsumptionOnOutput/L1/Power, místo senzoru HA. Sdílí příjem a diagnostiku Victronu; bargraf zůstává do 7 kW.
+- Nová položka mqtt_topics.inverter se doplní při načtení starší konfigurace; uložené ostatní topics se zachovají a výslovně prázdná položka zůstane vypnutá.
+- Neplatná, uložená, zastaralá nebo nepřijatá MQTT zpráva se nevydává za živé měření. Bez náhrady hodnotou z HA.
+
 ## 0.6.0
 
 - Kompaktní hlavní přehled bez úvodního textu, duplicitní karty baterie a simulátoru.
