@@ -1,5 +1,18 @@
 # Ověření 1. 10. 2026
 
+## Odstranění zbývajících limitů dat z HA — 5. 10. 2026, místní úprava
+
+- Na další výslovný pokyn odstraněny i limity Tesly, textu firmware, uptime, přijatého HA snímku a věková podmínka vstupů ručního Zap. Victron MQTT zachovává kontrolu stáří každého topicu. Simulační jádro není napojeno na živé vstupy a jeho modelová pravidla se nemění.
+- Testy všech HA parametrů ověřily staré (48 h), budoucí i chybějící časové značky včetně času příjmu. Dostupné platné údaje zůstávají použitelné; unknown/unavailable, chybné jednotky/hodnoty, chybějící entity a chyby HA požadavků se nadále odmítají. Timeout HTTP požadavku, příkazu a čekání na následné potvrzení zůstává.
+- Prošly Go testy všech šesti balíčků a go vet, 11 frontendových testů, vue-tsc, Vite build, publication check a diff check. Chromium desktop/mobil 390/340 px bez přetékání a chyb JavaScriptu; vizuálně ověřena upravená diagnostika s hodnotami se starými hlášeními.
+- Pouze lokální pracovní strom, bez publikace, nasazení a změn živého Node-RED.
+
+## Odstranění časových limitů teplot — 5. 10. 2026, místní úprava
+
+- Na výslovný pokyn uživatele odstraněno odmítání teplot podle stáří hlášení: čtení/zobrazení/odhad TUV i automatické a ruční řízení čerpadla. Dostupnost a platná hodnota v HA jsou podmínkou; časy hlášení zůstávají informační. Kontrola spojení s HA do 20 s, stavu čerpadla a napájení čidel zůstává.
+- Regrese ověřují staré (48 h), budoucí i chybějící časové značky při platných teplotách, automatické i ruční Zap a následné zrušení požadavku při neplatné teplotě. Čtení ověřuje unknown/unavailable, jednotky, neplatné číslo, nulovou teplotu a zachování timeoutu transportu. Staré options časových limitů se ignorují.
+- Prošly Go testy všech balíčků a go vet, 11 frontendových testů, vue-tsc, produkční Vite build, publication check a diff check. Vizuálně ověřen desktop/mobil 390 a 340 px, diagnostika bez starých limitů, zobrazení hodnot s 48 h starým hlášením a pomlčka u nedostupné teploty. Žádné živé příkazy, změny Node-RED, commit/push ani vydání této úpravy.
+
 ## Kontrola před publikací zdrojů 0.7.0 — 4. 10. 2026
 
 - Prošly `go test ./...` a `go vet ./...` všech šesti balíčků, včetně hystereze čerpadla, servisního času, restartu, změn režimu, chyb příkazů a opožděného potvrzení.

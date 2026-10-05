@@ -8,31 +8,25 @@ import (
 )
 
 type TeslaSnapshot struct {
-	Enabled      bool               `json:"enabled"`
-	Connected    bool               `json:"connected"`
-	Status       string             `json:"status"`
-	ReceivedAt   *time.Time         `json:"received_at"`
-	FreshSeconds int                `json:"fresh_seconds"`
-	Readings     map[string]Reading `json:"readings"`
+	Enabled    bool               `json:"enabled"`
+	Connected  bool               `json:"connected"`
+	Status     string             `json:"status"`
+	ReceivedAt *time.Time         `json:"received_at"`
+	Readings   map[string]Reading `json:"readings"`
 }
 
 // TeslaSnapshot exposes only selected telemetry, never locations or vehicle identifiers.
-func (r *Reader) TeslaSnapshot(now time.Time) TeslaSnapshot {
+func (r *Reader) TeslaSnapshot(_ time.Time) TeslaSnapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	enabled := r.config.Enabled && r.config.TeslaEnabled
-	out := TeslaSnapshot{Enabled: enabled, Connected: r.connected && enabled, Status: r.status, FreshSeconds: r.config.TeslaFreshSeconds, Readings: map[string]Reading{}}
+	out := TeslaSnapshot{Enabled: enabled, Connected: r.connected && enabled, Status: r.status, Readings: map[string]Reading{}}
 	if !enabled {
 		out.Status = "disabled"
 	}
 	if !r.receivedAt.IsZero() && enabled {
 		at := r.receivedAt
 		out.ReceivedAt = &at
-	}
-	transportFresh := out.Connected && !r.receivedAt.IsZero() && !r.receivedAt.After(now) && now.Sub(r.receivedAt) <= 20*time.Second
-	if out.Connected && !transportFresh {
-		out.Connected = false
-		out.Status = "stale"
 	}
 	for key, unit := range map[string]string{"soc": "%", "connected": "", "charging": "", "current": "A", "power": "W", "current_limit": "A"} {
 		reading := Reading{Unit: unit, Quality: "missing"}
@@ -93,10 +87,7 @@ func (r *Reader) TeslaSnapshot(now time.Time) TeslaSnapshot {
 					}
 				}
 			}
-			if reading.Quality == "valid" && (at.IsZero() || at.After(now) || now.Sub(at) > time.Duration(r.config.TeslaFreshSeconds)*time.Second) {
-				reading.Quality = "stale"
-			}
-			if !transportFresh {
+			if !out.Connected {
 				reading.Quality = "offline"
 			}
 		}

@@ -4,7 +4,7 @@ Zdrojová verze 0.7.0 připravená pro GitHub 4. 10. 2026. Aktivace na instalaci
 
 **Před aktivací doplňku s `pump_control_enabled: true` vypněte všechny Node-RED větve zapisující na Y04, včetně ručních a časových povelů.** Totéž platí pro další HA automatizace zapisující na tento výstup. Y04 musí mít jediného správce.
 
-Výchozí konfigurace doplňku má `pump_control_enabled: true` a `pump_temperature_fresh_seconds: 120`: je připravená k funkčnímu převzetí čerpadla nezávisle na ohřevu. Výslovně uložené `false` se zachová. Lokální běh bez options.json zůstává bez řízení; existující options bez této položky používají true. Pro dočasné sledování nastavte false a restartujte doplněk před jeho spuštěním proti HA.
+Výchozí konfigurace doplňku má `pump_control_enabled: true`: je připravená k funkčnímu převzetí čerpadla nezávisle na ohřevu. Výslovně uložené `false` se zachová. Lokální běh bez options.json zůstává bez řízení; existující options bez této položky používají true. Pro dočasné sledování nastavte false a restartujte doplněk před jeho spuštěním proti HA.
 
 ## Automatika a ruční režim
 
@@ -22,7 +22,7 @@ Samostatný adaptér používá pouze switch.turn_on / switch.turn_off pro `ha_e
 
 Úspěšná odpověď služby není potvrzení. Dashboard odděluje požadovaný, odeslaný a HA potvrzený stav; potvrzení povelu vyžaduje následující snímek s očekávanou hodnotou. Čekání trvá nejvýše 15 s, po chybě/timeoutu je odstup 10 s. Nový opačný požadavek přeruší čekání na starý. Hlášení HA není důkaz průtoku a optimistická integrace nemusí potvrzovat fyzické relé; ověřte skutečnou zpětnou vazbu při předání.
 
-Zapnutí včetně ručního vyžaduje platné čerstvé teploty 0–100 °C, aktuální HA snímek do 20 s, platný stav čerpadla a vypnutý reset napájení čidel. Výpadek či neplatná data zruší požadavek Zap, při dostupné komunikaci se požaduje Vyp. Nedostupnost ani chyba povelu se nezobrazuje jako potvrzené vypnutí. Při řádném ukončení se doplněk pokusí poslat Vyp; výpadek napájení nebo násilné ukončení tento pokus nezaručuje. Místní watchdog Y04 není doložený.
+Zapnutí včetně ručního vyžaduje platné dostupné teploty 0–100 °C bez limitu stáří hlášení, úspěšně načtený HA snímek bez časového limitu, platný stav čerpadla a vypnutý reset napájení čidel. Výpadek či neplatná data zruší požadavek Zap, při dostupné komunikaci se požaduje Vyp. Nedostupnost ani chyba povelu se nezobrazuje jako potvrzené vypnutí. Při řádném ukončení se doplněk pokusí poslat Vyp; výpadek napájení nebo násilné ukončení tento pokus nezaručuje. Místní watchdog Y04 není doložený.
 
 ## Předání na instalaci
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {pumpStatus} from '../src/pumpStatus.ts'
 import type {PumpControl} from '../src/live.ts'
 
-function fixture(status='idle'):PumpControl{return {enabled:true,owner:'addon',status,reason:'Teploty nevyžadují promíchávání',desired:false,sent:false,confirmed:false,process_request:false,service_request:false,last_service_day:'',temperature_fresh_seconds:120}}
+function fixture(status='idle'):PumpControl{return {enabled:true,owner:'addon',status,reason:'Teploty nevyžadují promíchávání',desired:false,sent:false,confirmed:false,process_request:false,service_request:false,last_service_day:''}}
 test('automatic ownership is independent of whether pump is running',()=>{
   const c=fixture();assert.equal(pumpStatus(c,true).label,'Automatika čerpadla')
   c.enabled=false;assert.equal(pumpStatus(c,true).label,'Řízení doplňkem nepřevzato')

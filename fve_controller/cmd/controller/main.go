@@ -190,11 +190,11 @@ func (a *App) handler(web string, ingress bool) http.Handler {
 		if reader == nil {
 			reader = homeassistant.New(homeassistant.Config{}, "")
 		}
-		control := pump.New(pump.Config{FreshSeconds: 120}, nil, "", nil)
+		control := pump.New(pump.Config{}, nil, "", nil)
 		if a.pump != nil {
 			control = a.pump
 		}
-		tuvControl := tuv.New(pump.New(pump.Config{FreshSeconds: 120}, nil, "", nil), "auto", nil)
+		tuvControl := tuv.New(pump.New(pump.Config{}, nil, "", nil), "auto", nil)
 		if a.tuv != nil {
 			tuvControl = a.tuv
 		}

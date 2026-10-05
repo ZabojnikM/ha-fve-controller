@@ -35,7 +35,7 @@ func fixture(now time.Time, upper, lower float64, on bool) homeassistant.Snapsho
 	}}
 }
 func controller(s *sender) *Controller {
-	return New(Config{Enabled: true, FreshSeconds: 120}, s, "", func(string) error { return nil })
+	return New(Config{Enabled: true}, s, "", func(string) error { return nil })
 }
 func tick(c *Controller, now time.Time, upper, lower float64, on bool) {
 	c.Cycle(context.Background(), now, fixture(now, upper, lower, on))
@@ -66,7 +66,7 @@ func TestProcessHysteresisAndExactBoundaries(t *testing.T) {
 
 func TestDisabledStartupInvalidInputsAndOutage(t *testing.T) {
 	s := &sender{}
-	c := New(Config{FreshSeconds: 120}, s, "", nil)
+	c := New(Config{}, s, "", nil)
 	tick(c, noon(), 59, 40, false)
 	if len(s.calls) != 0 || c.Snapshot().Owner != "external" {
 		t.Fatal("unowned output must never receive commands")
@@ -76,7 +76,7 @@ func TestDisabledStartupInvalidInputsAndOutage(t *testing.T) {
 	if len(s.calls) != 0 || c.Snapshot().Confirmed != nil {
 		t.Fatal("startup must wait for live state")
 	}
-	for _, change := range []string{"missing", "invalid", "stale", "future", "reset", "old_transport"} {
+	for _, change := range []string{"missing", "invalid", "unavailable", "reset"} {
 		s = &sender{}
 		c = controller(s)
 		now := noon()
@@ -88,22 +88,16 @@ func TestDisabledStartupInvalidInputsAndOutage(t *testing.T) {
 			r := in.Readings["upper"]
 			r.Value = nil
 			in.Readings["upper"] = r
-		case "stale", "future":
+		case "unavailable":
 			r := in.Readings["upper"]
-			at := now.Add(-121 * time.Second)
-			if change == "future" {
-				at = now.Add(time.Second)
-			}
-			r.SourceAt = &at
+			r.Value = nil
+			r.Quality = "invalid"
 			in.Readings["upper"] = r
 		case "reset":
 			r := in.Readings["sensor_reset"]
 			v := 1.0
 			r.Value = &v
 			in.Readings["sensor_reset"] = r
-		case "old_transport":
-			at := now.Add(-21 * time.Second)
-			in.ReceivedAt = &at
 		}
 		c.Cycle(context.Background(), now, in)
 		if *c.Snapshot().Desired || c.Snapshot().Process {
@@ -203,7 +197,7 @@ func TestDailyServiceThirtyConfirmedSecondsAndOR(t *testing.T) {
 	for _, process := range []bool{false, true} {
 		s := &sender{}
 		saved := []string{}
-		c := New(Config{Enabled: true, FreshSeconds: 120}, s, "", func(day string) error { saved = append(saved, day); return nil })
+		c := New(Config{Enabled: true}, s, "", func(day string) error { saved = append(saved, day); return nil })
 		upper := 50.0
 		if process {
 			upper = 59
@@ -232,7 +226,7 @@ func TestDailyServiceThirtyConfirmedSecondsAndOR(t *testing.T) {
 			t.Fatal("service expiration must not interrupt thermal mixing")
 		}
 		// Restart after reservation never restarts or restores a service timer.
-		restarted := New(Config{Enabled: true, FreshSeconds: 120}, s, saved[0], func(string) error { return nil })
+		restarted := New(Config{Enabled: true}, s, saved[0], func(string) error { return nil })
 		tick(restarted, start.Add(40*time.Second), 50, 40, true)
 		if restarted.Snapshot().Service || *restarted.Snapshot().Desired {
 			t.Fatal("restart must cancel service and use live temperatures")
@@ -257,7 +251,7 @@ func TestServiceClockTimezoneSkippedDaysAndStorageFailure(t *testing.T) {
 	if len(s.calls) != 0 || c.Snapshot().Service {
 		t.Fatal("missed schedule must not be replayed")
 	}
-	c = New(Config{Enabled: true, FreshSeconds: 120}, s, "", func(string) error { return errors.New("storage failed") })
+	c = New(Config{Enabled: true}, s, "", func(string) error { return errors.New("storage failed") })
 	now = now.Add(-2 * time.Minute)
 	tick(c, now, 50, 40, false)
 	if len(s.calls) != 0 || c.Snapshot().Service || c.Snapshot().Error == "" {
@@ -275,14 +269,14 @@ func TestServiceClockTimezoneSkippedDaysAndStorageFailure(t *testing.T) {
 func TestConfigAndOrderlyStop(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "options.json")
 	cfg, err := Load(path)
-	if err != nil || cfg.Enabled || cfg.FreshSeconds != 120 {
+	if err != nil || cfg.Enabled {
 		t.Fatal("default must not claim ownership")
 	}
 	if err := os.WriteFile(path, []byte(`{"pump_control_enabled":true,"pump_temperature_fresh_seconds":5}`), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(path); err == nil {
-		t.Fatal("too old/invalid freshness range")
+	if cfg, err := Load(path); err != nil || !cfg.Enabled {
+		t.Fatal("legacy temperature age option must be ignored")
 	}
 	s := &sender{}
 	c := controller(s)
@@ -352,8 +346,8 @@ func TestManualRejectsUnsafeOnAndAllowsOff(t *testing.T) {
 		t.Fatal("startup ON must wait for live data")
 	}
 	tick(c, now, 59, 40, false)
-	if c.Manual(true, now.Add(4*time.Second)) == nil {
-		t.Fatal("old cycle cannot authorize ON")
+	if c.Manual(true, now.Add(4*time.Second)) != nil {
+		t.Fatal("valid available inputs do not expire by age")
 	}
 	in := fixture(now.Add(time.Second), 59, 40, true)
 	delete(in.Readings, "upper")
@@ -397,6 +391,45 @@ func TestOptionsReadyDefaultPreservesExplicitDisable(t *testing.T) {
 		c, err := Load(path)
 		if err != nil || c.Enabled != tc.enabled {
 			t.Fatal(tc, err, c)
+		}
+	}
+}
+
+func TestTemperatureReportTimeDoesNotBlockControl(t *testing.T) {
+	now := noon()
+	for _, report := range []*time.Time{nil, timeValue(now.Add(-48 * time.Hour)), timeValue(now.Add(time.Hour))} {
+		for _, mode := range []string{"auto", "manual"} {
+			s := &sender{}
+			c := controller(s)
+			c.SetMode(mode)
+			in := fixture(now, 59, 40, false)
+			in.ReceivedAt = report
+			for _, key := range []string{"upper", "lower"} {
+				r := in.Readings[key]
+				r.SourceAt = report
+				in.Readings[key] = r
+			}
+			c.Cycle(context.Background(), now, in)
+			if !c.Snapshot().Ready {
+				t.Fatal("numeric available temperatures must not require report timestamps", mode, report)
+			}
+			if mode == "manual" {
+				if err := c.Manual(true, now); err != nil {
+					t.Fatal(err)
+				}
+				c.Cycle(context.Background(), now.Add(time.Second), in)
+			}
+			if len(s.calls) != 1 || !s.calls[0] {
+				t.Fatal("valid unchanged temperatures must allow ON", mode, s.calls)
+			}
+			// Availability remains required even when temperature age is ignored.
+			r := in.Readings["lower"]
+			r.Value, r.Quality = nil, "invalid"
+			in.Readings["lower"] = r
+			c.Cycle(context.Background(), now.Add(2*time.Second), in)
+			if c.Snapshot().Ready || *c.Snapshot().Desired || len(s.calls) != 2 || s.calls[1] {
+				t.Fatal("unavailable temperature must cancel ON", mode, s.calls)
+			}
 		}
 	}
 }

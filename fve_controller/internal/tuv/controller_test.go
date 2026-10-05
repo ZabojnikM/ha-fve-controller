@@ -8,7 +8,7 @@ import (
 )
 
 func TestModePersistenceAndUnownedOutput(t *testing.T) {
-	p := pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil)
+	p := pump.New(pump.Config{Enabled: true}, nil, "", nil)
 	fail := true
 	saved := ""
 	c := New(p, "auto", func(mode string) error {
@@ -28,7 +28,7 @@ func TestModePersistenceAndUnownedOutput(t *testing.T) {
 	if c.SetMode("invalid") == nil {
 		t.Fatal("invalid mode")
 	}
-	restart := New(pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil), saved, nil)
+	restart := New(pump.New(pump.Config{Enabled: true}, nil, "", nil), saved, nil)
 	if restart.Snapshot().Mode != "manual" || restart.Snapshot().AutomaticHeating || restart.Snapshot().HeatingOwner != "node_red" {
 		t.Fatal("restart mode must leave heating with Node-RED")
 	}

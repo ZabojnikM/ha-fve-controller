@@ -39,7 +39,7 @@ func TestTUVAPIIngressAndPrivacy(t *testing.T) {
 }
 
 func TestPumpTelemetryCannotActivateControl(t *testing.T) {
-	a := &App{ha: homeassistant.New(homeassistant.DefaultConfig(), "test-secret"), pump: pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil)}
+	a := &App{ha: homeassistant.New(homeassistant.DefaultConfig(), "test-secret"), pump: pump.New(pump.Config{Enabled: true}, nil, "", nil)}
 	h := a.handler(t.TempDir(), true)
 	r := httptest.NewRequest("GET", "/api/tuv", nil)
 	r.RemoteAddr = "172.30.32.2:1000"
@@ -167,7 +167,7 @@ func TestAPIAndPersistence(t *testing.T) {
 }
 
 func TestFixedPumpControlAPI(t *testing.T) {
-	p := pump.New(pump.Config{Enabled: true, FreshSeconds: 120}, nil, "", nil)
+	p := pump.New(pump.Config{Enabled: true}, nil, "", nil)
 	a := &App{pump: p, tuv: tuv.New(p, "auto", func(string) error { return nil })}
 	h := a.handler(t.TempDir(), true)
 	call := func(method, path, body, token, peer string) *httptest.ResponseRecorder {

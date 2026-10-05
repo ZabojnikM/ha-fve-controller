@@ -72,7 +72,7 @@ func TestTemperatureQualityAndTransport(t *testing.T) {
 		age         time.Duration
 		quality     string
 	}{
-		{"0", "°C", 0, "valid"}, {"48", "°C", time.Hour, "stale"}, {"48", "°C", -time.Hour, "stale"}, {"unknown", "°C", 0, "invalid"}, {"NaN", "°C", 0, "invalid"}, {"48", "°F", 0, "invalid"}, {"999", "°C", 0, "invalid"},
+		{"0", "°C", 0, "valid"}, {"48", "°C", time.Hour, "valid"}, {"48", "°C", -time.Hour, "valid"}, {"unavailable", "°C", 0, "invalid"}, {"unknown", "°C", 0, "invalid"}, {"NaN", "°C", 0, "invalid"}, {"48", "°F", 0, "invalid"}, {"999", "°C", 0, "invalid"},
 	} {
 		r := fixture(now, 2)
 		s := r.states["upper"]
@@ -101,8 +101,8 @@ func TestTemperatureQualityAndTransport(t *testing.T) {
 		t.Fatal("stable switch state should remain readable")
 	}
 	out := r.Snapshot(now.Add(21 * time.Second))
-	if out.Connected || out.NominalPower.Value != nil || out.Readings["upper"].Value != nil {
-		t.Fatal("transport silence must hide all values")
+	if !out.Connected || out.NominalPower.Value == nil || out.Readings["upper"].Value == nil {
+		t.Fatal("receipt age must not hide available values")
 	}
 	r.fail("offline")
 	if r.Snapshot(now).NominalPower.Value != nil {
@@ -110,6 +110,30 @@ func TestTemperatureQualityAndTransport(t *testing.T) {
 	}
 	if New(DefaultConfig(), "test-secret").Snapshot(now).NominalPower.Value != nil {
 		t.Fatal("restart must wait for new snapshot")
+	}
+}
+
+func TestTemperatureWithoutReportTimeAndLegacyOptions(t *testing.T) {
+	now := time.Now()
+	r := fixture(now, 0)
+	for _, key := range []string{"upper", "lower"} {
+		s := r.states[key]
+		s.LastReported, s.LastUpdated = time.Time{}, time.Time{}
+		r.states[key] = s
+		if value := r.Snapshot(now).Readings[key]; value.Quality != "valid" || value.Value == nil {
+			t.Fatal("available numeric temperature needs no report timestamp", key, value)
+		}
+	}
+	path := filepath.Join(t.TempDir(), "options.json")
+	if err := os.WriteFile(path, []byte(`{"ha_temperature_fresh_seconds":1,"pump_temperature_fresh_seconds":1,"tesla_fresh_seconds":1}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err != nil {
+		t.Fatal("obsolete temperature age options must not prevent startup", err)
+	}
+	r.receivedAt = now.Add(-21 * time.Second)
+	if value := r.Snapshot(now).Readings["upper"]; value.Quality != "valid" || value.Value == nil {
+		t.Fatal("receipt age must not invalidate available temperature", value)
 	}
 }
 
@@ -193,8 +217,8 @@ func TestUnchangedTemperatureUsesLiveReportTime(t *testing.T) {
 	}
 	s.LastReported = now.Add(-20 * time.Minute)
 	r.poll(context.Background())
-	if reading := r.Snapshot(time.Now()).Readings["lower"]; reading.Quality != "stale" || reading.Value != nil {
-		t.Fatal("fresh HTTP receipt must not validate an old temperature report", reading)
+	if reading := r.Snapshot(time.Now()).Readings["lower"]; reading.Quality != "valid" || reading.Value == nil || *reading.Value != 35.3 {
+		t.Fatal("unchanged numeric temperature must stay valid regardless of report age", reading)
 	}
 }
 
@@ -218,8 +242,8 @@ func TestKiconyBlocksFreshnessAndIndependentInputs(t *testing.T) {
 			s.LastReported = now.Add(-age)
 			r.states[key] = s
 			v := r.Snapshot(now).Readings[key]
-			if v.Quality != "stale" || v.Text != nil || v.Value != nil {
-				t.Fatal("stale periodic report must not remain visible", v)
+			if v.Quality != "valid" || (v.Text == nil && v.Value == nil) {
+				t.Fatal("available periodic state must ignore report time", v)
 			}
 		}
 	}
@@ -234,10 +258,11 @@ func TestKiconyBlocksFreshnessAndIndependentInputs(t *testing.T) {
 	if *out.Readings["overload"].Value != 1 || *out.Readings["sensor_reset"].Value != 1 || *out.Readings["system"].Text != "Aktivní" {
 		t.Fatal("inputs must remain independent of textual report", out)
 	}
+	r.fail("offline")
 	out = r.Snapshot(now.Add(21 * time.Second))
 	for _, v := range out.Readings {
 		if v.Value != nil || v.Text != nil {
-			t.Fatal("transport outage must clear all visible values", v)
+			t.Fatal("transport error must clear all visible values", v)
 		}
 	}
 }
@@ -263,5 +288,39 @@ func TestLegacyTuvOptionsMigrateWithoutChangingExternalTemperature(t *testing.T)
 	}
 	if _, err := Load(path); err == nil {
 		t.Fatal("explicit empty mapping must fail validation")
+	}
+}
+
+func TestAllHAReadingsIgnoreTimestampsButKeepAvailability(t *testing.T) {
+	now := time.Now()
+	for _, stamp := range []time.Time{time.Time{}, now.Add(-48 * time.Hour), now.Add(time.Hour)} {
+		r := teslaFixture(now)
+		r.receivedAt = stamp
+		for key, state := range r.states {
+			state.LastReported, state.LastUpdated = stamp, stamp
+			r.states[key] = state
+		}
+		for _, out := range []map[string]Reading{r.Snapshot(now).Readings, r.TeslaSnapshot(now).Readings} {
+			for key, reading := range out {
+				if reading.Quality != "valid" || (reading.Value == nil && reading.Text == nil) {
+					t.Fatal("HA timestamps must not expire available data", key, reading)
+				}
+			}
+		}
+		for key, s := range r.states {
+			s.State = "unavailable"
+			r.states[key] = s
+		}
+		for _, out := range []map[string]Reading{r.Snapshot(now).Readings, r.TeslaSnapshot(now).Readings} {
+			for _, reading := range out {
+				if reading.Quality != "invalid" || reading.Value != nil || reading.Text != nil {
+					t.Fatal("unavailable values must remain hidden", reading)
+				}
+			}
+		}
+		r.fail("offline")
+		if r.Snapshot(now).Connected || r.TeslaSnapshot(now).Connected || len(r.states) != 0 {
+			t.Fatal("communication error must clear both snapshots")
+		}
 	}
 }

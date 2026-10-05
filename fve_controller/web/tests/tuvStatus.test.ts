@@ -4,7 +4,7 @@ import {tuvStatus} from '../src/tuvStatus.ts'
 import type {TuvTelemetry} from '../src/live.ts'
 
 function fixture(state='Aktivní'):TuvTelemetry{
-  return {enabled:true,connected:true,status:'listening',received_at:null,temperature_fresh_seconds:900,
+  return {enabled:true,connected:true,status:'listening',received_at:null,
     nominal_power:{value:0,unit:'W',quality:'valid'},readings:{
       system:{value:null,text:state,unit:'',quality:'valid'},
       overload:{value:0,unit:'',quality:'valid'},sensor_reset:{value:0,unit:'',quality:'valid'},

@@ -64,17 +64,20 @@ func TestTeslaUnitsAndActualVsSetCurrent(t *testing.T) {
 
 func TestTeslaSourceAgeOutageAndOptionalMeasurements(t *testing.T) {
 	now := time.Now()
-	for _, age := range []time.Duration{time.Hour, -time.Hour} {
+	for _, age := range []time.Duration{48 * time.Hour, -time.Hour, 0} {
 		r := teslaFixture(now)
 		for key, s := range r.states {
 			if strings.HasPrefix(key, "tesla_") {
 				s.LastReported = now.Add(-age)
+				if age == 0 {
+					s.LastReported = time.Time{}
+				}
 				r.states[key] = s
 			}
 		}
 		for _, reading := range r.TeslaSnapshot(now).Readings {
-			if reading.Quality != "stale" || reading.Value != nil || reading.Text != nil {
-				t.Fatal("cache must not appear fresh", reading)
+			if reading.Quality != "valid" || (reading.Value == nil && reading.Text == nil) {
+				t.Fatal("available Tesla readings must ignore timestamps", reading)
 			}
 		}
 	}
@@ -86,8 +89,8 @@ func TestTeslaSourceAgeOutageAndOptionalMeasurements(t *testing.T) {
 		t.Fatal("partial data must remain independent")
 	}
 	out = r.TeslaSnapshot(now.Add(21 * time.Second))
-	if out.Connected || out.Readings["soc"].Value != nil || out.Readings["charging"].Text != nil {
-		t.Fatal("transport timeout must hide state")
+	if !out.Connected || out.Readings["soc"].Value == nil || out.Readings["charging"].Text == nil {
+		t.Fatal("receipt age alone must not hide available state")
 	}
 	r.fail("offline")
 	if r.TeslaSnapshot(now).Readings["connected"].Value != nil {
@@ -169,11 +172,11 @@ func TestUnchangedCurrentUsesLiveReportTime(t *testing.T) {
 	if reading.Quality != "valid" || reading.Value == nil || *reading.Value != 16 || !reading.SourceAt.Equal(s.LastReported) {
 		t.Fatal("unchanged current with fresh report must stay valid", reading)
 	}
-	// A genuinely old report is still rejected, even with a fresh HTTP response.
+	// Available values remain valid even when the source report time is old.
 	s.LastReported = now.Add(-20 * time.Minute)
 	r.poll(context.Background())
-	if reading := r.TeslaSnapshot(time.Now()).Readings["current"]; reading.Quality != "stale" || reading.Value != nil {
-		t.Fatal("old report must not become fresh on receipt", reading)
+	if reading := r.TeslaSnapshot(time.Now()).Readings["current"]; reading.Quality != "valid" || reading.Value == nil || *reading.Value != 16 {
+		t.Fatal("old report must remain usable when HA provides the value", reading)
 	}
 	// A rejected template endpoint clears the previous snapshot; no /states fallback.
 	code = http.StatusForbidden

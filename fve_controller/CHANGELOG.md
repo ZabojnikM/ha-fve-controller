@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.7.1
+
+- Odstraněny i zbývající časové kontroly ostatních HA údajů: Tesla, stav firmware, uptime a stáří přijatého snímku. Chyby spojení a neplatné/nedostupné hodnoty se dál odmítají; čas hlášení je pouze informační.
+- Victron MQTT zachovává dosavadní kontrolu stáří jednotlivých měření. Timeouty příkazů a potvrzení čerpadla zůstávají.
+
+- Teploty TUV se neodmítají podle stáří hlášení HA; odstraněn limit 120 s pro čerpadlo i 900 s pro zobrazení a odhad zásoby tepla.
+- Nedostupné/neplatné teploty, chybné jednotky, výpadek čtení HA a odpojené napájení čidel nadále blokují zapnutí čerpadla. Časy hlášení zůstávají informační.
+- Odstraněny nastavení časových limitů teplot; staré uložené položky se ignorují.
+
 ## 0.7.0
 
 - Funkční samostatné řízení čerpadla: hystereze 58/57 °C, servisní protočení 18:30 Europe/Prague na 30 s sloučené s procesním požadavkem.

@@ -19,16 +19,14 @@ import (
 )
 
 type Config struct {
-	Enabled                 bool              `json:"ha_enabled"`
-	TemperatureFreshSeconds int               `json:"ha_temperature_fresh_seconds"`
-	Entities                map[string]string `json:"ha_entities"`
-	TeslaEnabled            bool              `json:"tesla_enabled"`
-	TeslaFreshSeconds       int               `json:"tesla_fresh_seconds"`
-	TeslaEntities           map[string]string `json:"tesla_entities"`
+	Enabled       bool              `json:"ha_enabled"`
+	Entities      map[string]string `json:"ha_entities"`
+	TeslaEnabled  bool              `json:"tesla_enabled"`
+	TeslaEntities map[string]string `json:"tesla_entities"`
 }
 
 func DefaultConfig() Config {
-	return Config{Enabled: true, TemperatureFreshSeconds: 900, TeslaEnabled: true, TeslaFreshSeconds: 900, TeslaEntities: map[string]string{
+	return Config{Enabled: true, TeslaEnabled: true, TeslaEntities: map[string]string{
 		"connected": "binary_sensor.nabijeci_kabel", "soc": "sensor.uroven_baterie", "charging": "sensor.nabijeni",
 		"current": "sensor.proud_nabijecky", "power": "sensor.vykon_nabijecky", "current_limit": "number.nabijeci_proud",
 	}, Entities: map[string]string{
@@ -64,9 +62,6 @@ func (c Config) Validate() error {
 	if !c.Enabled {
 		return nil
 	}
-	if c.TemperatureFreshSeconds < 30 || c.TemperatureFreshSeconds > 86400 {
-		return errors.New("neplatné stáří teplot HA")
-	}
 	seen := map[string]bool{}
 	for key, expected := range DefaultConfig().Entities {
 		entity := c.Entities[key]
@@ -79,9 +74,6 @@ func (c Config) Validate() error {
 		return errors.New("neznámá entita TUV")
 	}
 	if c.TeslaEnabled {
-		if c.TeslaFreshSeconds < 30 || c.TeslaFreshSeconds > 86400 {
-			return errors.New("neplatné stáří dat Tesly")
-		}
 		if len(c.TeslaEntities) != 6 {
 			return errors.New("neznámá entita Tesly")
 		}
@@ -118,13 +110,12 @@ type Reading struct {
 }
 
 type Snapshot struct {
-	Enabled                 bool               `json:"enabled"`
-	Connected               bool               `json:"connected"`
-	Status                  string             `json:"status"`
-	ReceivedAt              *time.Time         `json:"received_at"`
-	TemperatureFreshSeconds int                `json:"temperature_fresh_seconds"`
-	Readings                map[string]Reading `json:"readings"`
-	NominalPower            Reading            `json:"nominal_power"`
+	Enabled      bool               `json:"enabled"`
+	Connected    bool               `json:"connected"`
+	Status       string             `json:"status"`
+	ReceivedAt   *time.Time         `json:"received_at"`
+	Readings     map[string]Reading `json:"readings"`
+	NominalPower Reading            `json:"nominal_power"`
 }
 
 type Reader struct {
@@ -262,18 +253,13 @@ func (r *Reader) Start(ctx context.Context) {
 	}()
 }
 
-func (r *Reader) Snapshot(now time.Time) Snapshot {
+func (r *Reader) Snapshot(_ time.Time) Snapshot {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := Snapshot{Enabled: r.config.Enabled, Connected: r.connected, Status: r.status, TemperatureFreshSeconds: r.config.TemperatureFreshSeconds, Readings: map[string]Reading{}, NominalPower: Reading{Unit: "W", Quality: "missing"}}
+	out := Snapshot{Enabled: r.config.Enabled, Connected: r.connected, Status: r.status, Readings: map[string]Reading{}, NominalPower: Reading{Unit: "W", Quality: "missing"}}
 	if !r.receivedAt.IsZero() {
 		at := r.receivedAt
 		out.ReceivedAt = &at
-	}
-	transportFresh := r.connected && !r.receivedAt.IsZero() && !r.receivedAt.After(now) && now.Sub(r.receivedAt) <= 20*time.Second
-	if r.connected && !transportFresh {
-		out.Connected = false
-		out.Status = "stale"
 	}
 	for key := range r.config.Entities {
 		reading := Reading{Quality: "missing"}
@@ -295,9 +281,6 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 				if err == nil && !math.IsNaN(v) && !math.IsInf(v, 0) && v >= -20 && v <= 150 && s.Attributes.Unit == "°C" {
 					reading.Value = &v
 					reading.Quality = "valid"
-					if at.IsZero() || at.After(now) || now.Sub(at) > time.Duration(r.config.TemperatureFreshSeconds)*time.Second {
-						reading.Quality = "stale"
-					}
 				}
 			} else if key == "power" {
 				if v, ok := map[string]float64{"Vypnuto": 0, "1 kW": 1000, "2 kW": 2000, "3 kW": 3000}[s.State]; ok {
@@ -313,18 +296,12 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 					reading.Text = &text
 					reading.Quality = "valid"
 				}
-				if reading.Quality == "valid" && (at.IsZero() || at.After(now) || now.Sub(at) > 60*time.Second) {
-					reading.Quality = "stale"
-				}
 			} else if key == "uptime" {
 				v, err := strconv.ParseFloat(s.State, 64)
 				if err == nil && !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && s.Attributes.Unit == "s" {
 					reading.Value = &v
 					reading.Unit = "s"
 					reading.Quality = "valid"
-					if at.IsZero() || at.After(now) || now.Sub(at) > 180*time.Second {
-						reading.Quality = "stale"
-					}
 				}
 			} else if s.State == "on" || s.State == "off" {
 				v := 0.0
@@ -335,7 +312,7 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 				reading.Quality = "valid"
 			}
 		}
-		if !transportFresh && exists {
+		if !r.connected && exists {
 			reading.Quality = "offline"
 		}
 		if reading.Quality != "valid" {
@@ -346,7 +323,7 @@ func (r *Reader) Snapshot(now time.Time) Snapshot {
 	}
 	out.NominalPower = out.Readings["power"]
 	out.NominalPower.Unit = "W"
-	if !transportFresh {
+	if !r.connected {
 		out.NominalPower.Quality = "offline"
 	}
 	return out

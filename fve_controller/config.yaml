@@ -1,5 +1,5 @@
 name: FVE Controller
-version: "0.7.0"
+version: "0.7.1"
 slug: fve_controller
 url: https://github.com/ZabojnikM/ha-fve-controller
 image: ghcr.io/zabojnikm/ha-fve-controller
@@ -15,9 +15,7 @@ ingress_port: 8099
 panel_icon: mdi:solar-power
 options:
   pump_control_enabled: true
-  pump_temperature_fresh_seconds: 120
   tesla_enabled: true
-  tesla_fresh_seconds: 900
   tesla_entities:
     connected: binary_sensor.nabijeci_kabel
     soc: sensor.uroven_baterie
@@ -26,7 +24,6 @@ options:
     power: sensor.vykon_nabijecky
     current_limit: number.nabijeci_proud
   ha_enabled: true
-  ha_temperature_fresh_seconds: 900
   ha_entities:
     upper: sensor.tepla_voda
     lower: sensor.tuv_1
@@ -56,9 +53,7 @@ options:
     solar_fence: victron/N/c0619ab221ee/solarcharger/1/Yield/Power
 schema:
   pump_control_enabled: bool
-  pump_temperature_fresh_seconds: int(30,900)
   tesla_enabled: bool
-  tesla_fresh_seconds: int(30,86400)
   tesla_entities:
     connected: str
     soc: str
@@ -67,7 +62,6 @@ schema:
     power: str
     current_limit: str
   ha_enabled: bool
-  ha_temperature_fresh_seconds: int(30,86400)
   ha_entities:
     upper: str
     lower: str

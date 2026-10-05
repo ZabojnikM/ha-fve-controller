@@ -15,12 +15,11 @@ import (
 )
 
 type Config struct {
-	Enabled      bool `json:"pump_control_enabled"`
-	FreshSeconds int  `json:"pump_temperature_fresh_seconds"`
+	Enabled bool `json:"pump_control_enabled"`
 }
 
 func Load(path string) (Config, error) {
-	c := Config{FreshSeconds: 120}
+	c := Config{}
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
 		return c, nil
@@ -28,9 +27,6 @@ func Load(path string) (Config, error) {
 	c.Enabled = true
 	if err != nil || json.Unmarshal(b, &c) != nil {
 		return c, errors.New("Nelze číst nastavení čerpadla")
-	}
-	if c.FreshSeconds < 30 || c.FreshSeconds > 900 {
-		return c, errors.New("Neplatné stáří teplot pro čerpadlo")
 	}
 	return c, nil
 }
@@ -55,7 +51,6 @@ type Snapshot struct {
 	Service        bool       `json:"service_request"`
 	ServiceUntil   *time.Time `json:"service_until"`
 	LastServiceDay string     `json:"last_service_day"`
-	FreshSeconds   int        `json:"temperature_fresh_seconds"`
 }
 
 type Controller struct {
@@ -92,23 +87,23 @@ func New(c Config, sender Sender, lastDay string, persistDay func(string) error)
 		owner, status, reason = "addon", "waiting", "Čeká na živý stav čerpadla a teploty"
 	}
 	return &Controller{config: c, sender: sender, persistDay: persistDay, location: loc, serviceDay: lastDay, mode: "auto",
-		view: Snapshot{Mode: "auto", Enabled: c.Enabled, Owner: owner, Status: status, Reason: reason, LastServiceDay: lastDay, FreshSeconds: c.FreshSeconds}}
+		view: Snapshot{Mode: "auto", Enabled: c.Enabled, Owner: owner, Status: status, Reason: reason, LastServiceDay: lastDay}}
 }
 
 func boolValue(v bool) *bool           { return &v }
 func timeValue(v time.Time) *time.Time { return &v }
 
-func temperature(r homeassistant.Reading, now time.Time, ttl int) (float64, bool) {
-	if r.Quality != "valid" || r.Value == nil || r.Unit != "°C" || r.SourceAt == nil || r.SourceAt.After(now) || now.Sub(*r.SourceAt) > time.Duration(ttl)*time.Second {
+func temperature(r homeassistant.Reading) (float64, bool) {
+	if r.Quality != "valid" || r.Value == nil || r.Unit != "°C" {
 		return 0, false
 	}
 	v := *r.Value
 	return v, !math.IsNaN(v) && !math.IsInf(v, 0) && v >= 0 && v <= 100
 }
 
-func actual(s homeassistant.Snapshot, now time.Time) *bool {
+func actual(s homeassistant.Snapshot) *bool {
 	r := s.Readings["pump"]
-	if !s.Enabled || !s.Connected || s.ReceivedAt == nil || s.ReceivedAt.After(now) || now.Sub(*s.ReceivedAt) > 20*time.Second || r.Quality != "valid" || r.Value == nil || (*r.Value != 0 && *r.Value != 1) {
+	if !s.Enabled || !s.Connected || r.Quality != "valid" || r.Value == nil || (*r.Value != 0 && *r.Value != 1) {
 		return nil
 	}
 	return boolValue(*r.Value == 1)
@@ -122,7 +117,7 @@ func (c *Controller) Cycle(ctx context.Context, now time.Time, s homeassistant.S
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.view.Confirmed = actual(s, now)
+	c.view.Confirmed = actual(s)
 	if !c.config.Enabled {
 		return
 	}
@@ -134,8 +129,8 @@ func (c *Controller) Cycle(ctx context.Context, now time.Time, s homeassistant.S
 		c.retryAt = time.Time{}
 	}
 	c.lastCycle = now
-	upper, upperOK := temperature(s.Readings["upper"], now, c.config.FreshSeconds)
-	lower, lowerOK := temperature(s.Readings["lower"], now, c.config.FreshSeconds)
+	upper, upperOK := temperature(s.Readings["upper"])
+	lower, lowerOK := temperature(s.Readings["lower"])
 	reset := s.Readings["sensor_reset"]
 	resetOK := reset.Quality == "valid" && reset.Value != nil && *reset.Value == 0
 	healthy := c.view.Confirmed != nil && upperOK && lowerOK && resetOK
@@ -145,7 +140,7 @@ func (c *Controller) Cycle(ctx context.Context, now time.Time, s homeassistant.S
 		c.manualRequest = false
 		c.process, c.service = false, false
 		c.serviceUntil = time.Time{}
-		c.view.Reason = "Chybí platná čerstvá teplota nebo stav čerpadla/napájení čidel"
+		c.view.Reason = "Chybí platná teplota nebo stav čerpadla/napájení čidel"
 		if reset.Quality == "valid" && reset.Value != nil && *reset.Value == 1 {
 			c.view.Reason = "Obnova čidel · požadováno vypnutí čerpadla"
 		}
@@ -224,7 +219,7 @@ func (c *Controller) Cycle(ctx context.Context, now time.Time, s homeassistant.S
 		}
 	}
 	if c.pending && c.sent == desired {
-		if c.view.Confirmed != nil && *c.view.Confirmed == desired && s.ReceivedAt.After(c.sentAt) {
+		if c.view.Confirmed != nil && *c.view.Confirmed == desired && s.ReceivedAt != nil && s.ReceivedAt.After(c.sentAt) {
 			c.pending = false
 		} else if now.Sub(c.sentAt) < 15*time.Second {
 			if c.view.Confirmed != nil {
@@ -327,14 +322,14 @@ func (c *Controller) SetMode(mode string) {
 		c.view.Reason = "Přepíná režim TUV podle živých stavů"
 	}
 }
-func (c *Controller) Manual(on bool, now time.Time) error {
+func (c *Controller) Manual(on bool, _ time.Time) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.config.Enabled || c.mode != "manual" {
 		return errors.New("Čerpadlo není předané ručnímu ovládání doplňku")
 	}
-	if on && (!c.healthy || now.Before(c.lastCycle) || now.Sub(c.lastCycle) > 3*time.Second) {
-		return errors.New("Zapnutí čerpadla vyžaduje čerstvé platné vstupy")
+	if on && !c.healthy {
+		return errors.New("Zapnutí čerpadla vyžaduje platné dostupné vstupy")
 	}
 	c.manualRequest = on
 	c.view.ManualRequest = boolValue(on)
